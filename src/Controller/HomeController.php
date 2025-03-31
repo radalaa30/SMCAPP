@@ -30,12 +30,7 @@ class HomeController extends AbstractController
     public function index(Request $request,int $id, DemandeRepository $repository): Response
     {
         $demande = $repository->find($id);
-        /*
-        if($demande->getSlug() <> $slug) {
-            return $this->redirectToRoute('demande.liste', ['slug' => $demande->getSlug(), 'id' => $demande->getId()]);
-         }
-            */
-        $listeDemande = $repository->findAll();
+               $listeDemande = $repository->findAll();
         return $this->render('home/index.html.twig', [
         'listeDemande' => $listeDemande
         ]);
@@ -67,9 +62,6 @@ class HomeController extends AbstractController
     public function Demande_edit(demande $demande, Request $request, EntityManagerInterface $em)
     {
     $form = $this->createForm(DemandeType::class, $demande);
-        //verfifier si l'etat et en cours
-        // etat en cours 
-        // flashbag veiller prendre une autre 
        $form->handleRequest($request);
        if($form->isSubmitted() && $form->isValid()){
         $demande->setCreateAt(new \DateTimeImmutable());

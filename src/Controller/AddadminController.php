@@ -16,7 +16,6 @@ use App\Form\ValidationType;
 use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
-//use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\Security;
 //controller pour traiter l'anomalie des vieux PDA
 class AddadminController extends AbstractController
@@ -26,25 +25,7 @@ class AddadminController extends AbstractController
     //Demande de reappro par le preparateur
     #[Route('/addadmin', name: 'addadmin_reappro')]
     public function AddadminReappro(request $request, EntityManagerInterface $em,DemandeReappro $Demande): Response
-    {
-        echo 'idi';
-        die();
-        //$this->denyAccessUnlessGranted('ROLE_USER');
-        // Récupérer l'objet utilisateur
-        //$user = $this->getUser();
-        // Vérifier si l'utilisateur est connecté
-       // if ($user) {
-            // Extraire les données de l'objet utilisateur
-       //     $userId = $user->getId();         // Integer
-        //    $username = $user->getUsername(); // String
-        //    $email = $user->getEmail();       // String
-            // Afficher les données (par exemple, pour le débogage)
-        //} else {
-            // Gestion des cas où l'utilisateur n'est pas connecté
-         //   return new Response('User not authenticated.');
-        //}
-
-        $form = $this->createForm(ValidationType::class, $Demande);
+    {        $form = $this->createForm(ValidationType::class, $Demande);
         $form->handleRequest($request);
         if($form->isSubmitted() && $form->isValid()){
         $Demande->setIdReappro(25);
