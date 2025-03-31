@@ -1,0 +1,99 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Tableau de bord des statistiques{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <h1 class="mb-4">Tableau de bord des statistiques</h1>
+
+        {# Statistiques par statut #}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Statistiques par statut</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for statut, count in stats.statuts %}
+                        <div class="col-md-3 mb-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">{{ statut }}</h6>
+                                    <p class="card-text h2">{{ count }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Statistiques par préparateur #}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Statistiques par préparateur</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Préparateur</th>
+                                <th class="text-center">Nombre de demandes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prep, count in stats.preparateurs %}
+                                <tr>
+                                    <td class="text-center">{{ prep }}</td>
+                                    <td class="text-center">{{ count }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center">Aucune donnée disponible</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Statistiques par cariste #}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Statistiques par cariste</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Cariste</th>
+                                <th class="text-center">Nombre de demandes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cariste, count in stats.caristes %}
+                                <tr>
+                                    <td class="text-center">{{ cariste ?? 'Non assigné' }}</td>
+                                    <td class="text-center">{{ count }}</td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="2" class="text-center">Aucune donnée disponible</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Bouton de retour #}
+        <div class="text-end mb-4">
+            <a href="{{ path('admin_dashboard') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> Retour à la liste
+            </a>
+        </div>
+    </div>
+{% endblock %}

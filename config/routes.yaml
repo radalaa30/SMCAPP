@@ -1,0 +1,17 @@
+controllers:
+    resource:
+        path: ../src/Controller/
+        namespace: App\Controller
+    type: attribute
+# config/routes.yaml
+app_dashboard_inventaire:
+    path: /dashboard/inventaire
+    controller: App\Controller\InventaireDashboardController::index
+
+app_dashboard_inventaire_update:
+    path: /dashboard/inventaire/mise-a-jour
+    controller: App\Controller\InventaireDashboardController::miseAJour
+
+app_dashboard_inventaire_detail:
+    path: /dashboard/inventaire/detail/{id}
+    controller: App\Controller\InventaireDashboardController::detail

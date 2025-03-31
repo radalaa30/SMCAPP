@@ -1,0 +1,28 @@
+<?php
+// src/Repository/SuividupreparationdujourhistoriqueRepository.php
+
+namespace App\Repository;
+
+use App\Entity\Suividupreparationdujour;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Persistence\ManagerRegistry;
+
+class SuividupreparationdujourinventaireRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Suividupreparationdujour::class);
+    }
+    
+    public function getTotalSortiParProduitEtAdresse($codeProduit, $adresse)
+    {
+        return $this->createQueryBuilder('s')
+            ->select('SUM(s.Nb_art)')
+            ->where('s.CodeProduit = :codeProduit')
+            ->andWhere('s.Adresse = :adresse')
+            ->setParameter('codeProduit', $codeProduit)
+            ->setParameter('adresse', $adresse)
+            ->getQuery()
+            ->getSingleScalarResult() ?: 0;
+    }
+}

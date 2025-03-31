@@ -1,0 +1,42 @@
+{# templates/import/inventaire.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Import Inventaire Complet{% endblock %}
+
+{% block body %}
+    <div class="container mt-4">
+        <h1>Importer l'inventaire complet</h1>
+        
+        {% for message in app.flashes('success') %}
+            <div class="alert alert-success">
+                {{ message }}
+            </div>
+        {% endfor %}
+        
+        {% for message in app.flashes('error') %}
+            <div class="alert alert-danger">
+                {{ message }}
+            </div>
+        {% endfor %}
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                {{ form_start(form, {'method': 'POST', 'attr': {'enctype': 'multipart/form-data'}}) }}
+                    {{ form_row(form.file, {'attr': {'class': 'form-control'}}) }}
+                    <div class="mt-3">
+                        {{ form_row(form.submit, {'attr': {'class': 'btn btn-primary'}}) }}
+                    </div>
+                {{ form_end(form) }}
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <p>Notes importantes :</p>
+            <ul>
+                <li>Le fichier doit être au format Excel (.xls ou .xlsx)</li>
+                <li>La première ligne est considérée comme des en-têtes et sera ignorée</li>
+                <li>L'ordre des colonnes doit correspondre à : nopalinfo, codeprod, dsignprod, emplacement, nopal, etc.</li>
+            </ul>
+        </div>
+    </div>
+{% endblock %}

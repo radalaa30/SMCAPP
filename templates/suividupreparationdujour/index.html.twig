@@ -1,0 +1,68 @@
+{# templates/suividupreparationdujour/index.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Liste des suivis de préparation{% endblock %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Liste des suivis de préparation</h1>
+    <a href="{{ path('app_suivi_index') }}" class="btn btn-success">
+        <i class="fas fa-plus"></i> Nouveau suivi
+    </a>
+</div>
+
+<div class="table-container">
+    <table class="table table-striped table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Date Livraison</th>
+                <th>N° Commande</th>
+                <th>Client</th>
+                <th>Code Client</th>
+                <th>Code Produit</th>
+                <th>Gencode UV</th>
+                <th>N° Palette</th>
+                <th>Zone</th>
+                <th>Adresse</th>
+                <th>Nb Pal</th>
+                <th>Nb Col</th>
+                <th>Nb Art</th>
+                <th>N° BL</th>
+                <th>Statut Cde</th>
+                <th>Préparateur</th>
+                <th>Transporteur</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for suivi in suivis %}
+            <tr>
+                <td>{{ suivi.DateLiv|date('d/m/Y') }}</td>
+                <td>{{ suivi.NoCmd }}</td>
+                <td>{{ suivi.Client }}</td>
+                <td>{{ suivi.CodeClient }}</td>
+                <td>{{ suivi.CodeProduit }}</td>
+                <td>{{ suivi.GencodeUv }}</td>
+                <td>{{ suivi.NoPalette }}</td>
+                <td>{{ suivi.Zone }}</td>
+                <td>{{ suivi.Adresse }}</td>
+                <td>{{ suivi.NbPal }}</td>
+                <td>{{ suivi.NbCol }}</td>
+                <td>{{ suivi.NbArt }}</td>
+                <td>{{ suivi.NoBl }}</td>
+                <td>
+                    <span class="badge {% if suivi.StatutCde == 'Terminé' %}bg-success{% else %}bg-warning{% endif %}">
+                        {{ suivi.StatutCde }}
+                    </span>
+                </td>
+                <td>{{ suivi.Preparateur }}</td>
+                <td>{{ suivi.Transporteur }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="16" class="text-center">Aucun suivi trouvé</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

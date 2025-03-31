@@ -1,0 +1,423 @@
+{# templates/suividupreparationdujour/stats.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .stats-container { padding: 20px; }
+        .stats-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .stats-header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .refresh-button {
+            font-size: 0.9em;
+            padding: 5px 15px;
+        }
+        .progress {
+            height: 20px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+        .progress-bar.warning { background-color: #FFA726; }
+        .progress-bar.danger { background-color: #EF5350; }
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .stats-table th,
+        .stats-table td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        .stats-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .stats-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .agence-row { background-color: #e3f2fd !important; }
+        .chart-container { height: 400px; margin-top: 20px; }
+        .stats-card {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        .stats-card:hover { transform: translateY(-2px); }
+        .stats-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2196F3;
+        }
+        .stats-label { color: #666; }
+        .table-responsive { max-height: 500px; overflow-y: auto; }
+        .update-box {
+            border: 2px solid #3498db;
+            background-color: #ebf5fb;
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            color: #2874a6;
+        }
+        .preparateur-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            margin: 2px;
+            font-size: 0.9em;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="stats-container">
+    {# En-tête #}
+    <div class="stats-section">
+        <div class="stats-header">
+            <h2>Tableau de bord des préparations</h2>
+            <h4>
+                {% if lastUpdatedAt %}
+                <div class="last-updated update-box">
+                    Dernière mise à jour : {{ lastUpdatedAt|date('d/m/Y H:i') }}
+                </div>
+                {% endif %}
+            </h4>
+            <button class="btn btn-primary refresh-button" onclick="window.location.reload()">
+                Actualiser
+            </button>
+        </div>
+    </div>
+
+    {# Vue d'ensemble #}
+    <div class="stats-section">
+        <h2 class="stats-header">Vue d'ensemble</h2>
+        <div class="row g-4">
+            {# Total préparations #}
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <h4 class="mb-3">Total préparations</h4>
+                    <div class="stats-value">{{ statsGlobales.total_preparations }}</div>
+                    <div class="stats-label">Lignes à traiter</div>
+                </div>
+            </div>
+
+            {# Préparations terminées #}
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <h4 class="mb-3">Terminées</h4>
+                    <div class="stats-value text-success">{{ statsGlobales.preparations_terminees }}</div>
+                    <div class="progress mt-3">
+                        <div class="progress-bar {% if statsGlobales.pourcentage_avancement < 50 %}bg-warning{% elseif statsGlobales.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ statsGlobales.pourcentage_avancement }}%">
+                            {{ statsGlobales.pourcentage_avancement }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Stats clients #}
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <h4 class="mb-3">Clients</h4>
+                    <div class="mb-3">
+                        <h5>Total Préparations</h5>
+                        <div class="stats-value">{{ statsGlobales.total_preparations_client }}</div>
+                    </div>
+                    <div>
+                        <h5>Reste à préparer</h5>
+                        <div class="stats-value">{{ statsGlobales.preparations_client_en_cours }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {# Stats agence #}
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <h4 class="mb-3">Agences</h4>
+                    <div class="mb-3">
+                        <h5>Total Préparations</h5>
+                        <div class="stats-value">{{ statsGlobales.total_preparations_agence }}</div>
+                    </div>
+                    <div>
+                        <h5>Reste à préparer</h5>
+                        <div class="stats-value">{{ statsGlobales.preparations_agence_en_cours }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Performance des préparateurs #}
+    <div class="stats-section">
+    {# Affiche le contenu complet de la variable statsPreparateur #}
+        <h2 class="stats-header">Performance des Préparateurs</h2>
+
+        <div class="chart-container">
+            <canvas id="preparateursChart"></canvas>
+        </div>
+    </div>
+
+    {# Performance des agences #}
+    <div class="stats-section">
+        <h2 class="stats-header">Performance des Agences</h2>
+        <div class="chart-container">
+            <canvas id="agencesChart"></canvas>
+        </div>
+    </div>
+
+    {# Statistiques par Agence #}
+    <div class="stats-section">
+        <h2 class="stats-header">Statistiques par Agence</h2>
+        <div class="table-responsive">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Agence</th>
+                        <th>Code</th>
+                        <th>Préparateurs</th>
+                        <th>Total</th>
+                        <th>Terminées</th>
+                        <th>En cours</th>
+                        <th>Avancement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in statsAgence %}
+                        <tr class="agence-row">
+                            <td>{{ stat.Client }}</td>
+                            <td>{{ stat.Code_Client }}</td>
+                            <td>
+                                
+                            </td>
+                            <td>{{ stat.total_preparations }}</td>
+                            <td>{{ stat.preparations_terminees }}</td>
+                            <td>{{ stat.preparations_en_cours }}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}warning{% endif %}"
+                                         style="width: {{ stat.pourcentage_avancement }}%">
+                                        {{ stat.pourcentage_avancement }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Statistiques par Client #}
+    <div class="stats-section">
+        <h2 class="stats-header">Statistiques par Client</h2>
+        <div class="table-responsive">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Code</th>
+                        <th>Préparateurs</th>
+                        <th>Total</th>
+                        <th>Terminées</th>
+                        <th>En cours</th>
+                        <th>Avancement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in statsClient %}
+                        <tr>
+                            <td>{{ stat.Client }}</td>
+                            <td>{{ stat.Code_Client }}</td>
+                            <td>
+                                
+                            </td>
+                            <td>{{ stat.total_preparations }}</td>
+                            <td>{{ stat.preparations_terminees }}</td>
+                            <td>{{ stat.preparations_en_cours }}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}warning{% endif %}"
+                                         style="width: {{ stat.pourcentage_avancement }}%">
+                                        {{ stat.pourcentage_avancement }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+    // Graphique des préparateurs
+    const ctxPreparateurs = document.getElementById('preparateursChart');
+    new Chart(ctxPreparateurs, {
+        type: 'bar',
+        data: {
+            labels: {{ dataPreparateurs.labels|json_encode|raw }},
+            datasets: [
+                {
+                    label: 'Préparations Client',
+                    data: {{ dataPreparateurs.termineesClient|json_encode|raw }},
+                    backgroundColor: 'rgba(165, 181, 64, 0.8)',
+                    borderColor: 'rgba(165, 181, 64, 0.8)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Préparations Agence',
+                    data: {{ dataPreparateurs.termineesAgence|json_encode|raw }},
+                    backgroundColor: 'rgba(55, 55, 225, 0.8)',
+                    borderColor: 'rgba(55, 55, 225, 0.8)',
+                    borderWidth: 1
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            const pourcentages = {{ dataPreparateurs.pourcentages|json_encode|raw }};
+                            const totalClient = {{ dataPreparateurs.termineesClient|json_encode|raw }}[index] + 
+                                             {{ dataPreparateurs.enCoursClient|json_encode|raw }}[index];
+                            const totalAgence = {{ dataPreparateurs.termineesAgence|json_encode|raw }}[index] + 
+                                             {{ dataPreparateurs.enCoursAgence|json_encode|raw }}[index];
+                            return [
+                                `Taux d'avancement: ${pourcentages[index]}%`,
+                                `Total Client: ${totalClient}`,
+                                `Total Agence: ${totalAgence}`,
+                                `Total Global: ${totalClient + totalAgence}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { 
+                        display: false 
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: { 
+                        color: 'rgba(0, 0, 0, 0.1)' 
+                    }
+                }
+            }
+        }
+    });
+
+    // Graphique des agences 
+    const ctxAgences = document.getElementById('agencesChart');
+    new Chart(ctxAgences, {
+        type: 'bar',
+        data: {
+            labels: {{ dataAgences.labels|json_encode|raw }},
+            datasets: [{
+                label: 'Préparations terminées',
+                data: {{ dataAgences.terminees|json_encode|raw }},
+                backgroundColor: 'rgba(33, 150, 243, 0.8)',
+                borderColor: 'rgba(33, 150, 243, 1)',
+                borderWidth: 1
+            }, {
+                label: 'En cours',
+                data: {{ dataAgences.enCours|json_encode|raw }},
+                backgroundColor: 'rgba(255, 167, 38, 0.8)',
+                borderColor: 'rgba(255, 167, 38, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                       afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            const pourcentages = {{ dataAgences.pourcentages|json_encode|raw }};
+                            const terminees = {{ dataAgences.terminees|json_encode|raw }}[index];
+                            const enCours = {{ dataAgences.enCours|json_encode|raw }}[index];
+                            const total = terminees + enCours;
+                            
+                            return [
+                                `Taux d'avancement: ${pourcentages[index]}%`,
+                                `Total: ${total}`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { display: false }
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                }
+            }
+        }
+    });
+});
+   
+    </script>
+{% endblock %}

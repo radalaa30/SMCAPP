@@ -1,0 +1,221 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Recherche Suivi Préparation{% endblock %}
+
+{% block body %}
+    <div class="container mt-4">
+        <h1>Recherche d’historique des préparations</h1>
+
+        {{ form_start(form, {'attr': {'class': 'mb-4'}}) }}
+            <div class="row">
+                <div class="col-md-3">{{ form_row(form.codeClient) }}</div>
+                <div class="col-md-3">{{ form_row(form.client) }}</div>
+                <div class="col-md-3">{{ form_row(form.preparateur) }}</div>
+                <div class="col-md-3">{{ form_row(form.updatedAt) }}</div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-3">{{ form_row(form.noBl) }}</div>
+                <div class="col-md-3">{{ form_row(form.noCmd) }}</div>
+                <div class="col-md-3">{{ form_row(form.codeProduit) }}</div>
+                <td>{{ form_row(form.dateliv) }}</td>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary">Rechercher</button>
+                </div>
+            </div>
+        {{ form_end(form) }}
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Code Client</th>
+                        <th>Date de Livraison</th>
+                        <th>Client</th>
+                        <th>Préparateur</th>
+                        <th>Date MAJ</th>
+                        <th>N° BL</th>
+                        <th>N° Commande</th>
+                        <th>Code Produit</th>
+                        <th>Nbr Article</th>
+                        <th>Adresse</th>
+                    
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for suivi in pagination %}
+                        <tr>
+                            <td>{{ suivi.codeClient }}</td>
+                            <td>{{ suivi.dateliv|date('d/m/Y') }}</td>
+                            <td>{{ suivi.client }}</td>
+                            <td>{{ suivi.preparateur }}</td>
+                            <td>{% if suivi.updatedAt %}{{ suivi.updatedAt|date('d/m/Y H:i') }}{% endif %}</td>
+                            <td>{{ suivi.noBl }}</td>
+                            <td>{{ suivi.noCmd }}</td>
+                            <td>{{ suivi.codeProduit }}</td>
+                             <td>{{ suivi.nbArt }}</td>
+                            <td>{{ suivi.zone }}:{{ suivi.adresse }}</td>
+                              
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="navigation">
+            {{ knp_pagination_render(pagination) }}
+        </div>
+    </div>
+
+    <style>
+/* Variables pour les couleurs */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --hover-color: #edf2f7;
+    --border-color: #e2e8f0;
+    --header-text: #ffffff;
+    --text-color: #2d3748;
+}
+
+/* Style du conteneur */
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+padding: 2rem 1rem;
+
+/* Style du titre */
+h1 {
+    color: var(--primary-color);
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    font-weight: 600;
+}
+
+/* Style du formulaire */
+form {
+    background-color: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.form-control {
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+}
+
+.btn-primary {
+    background-color: var(--secondary-color);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+    transform: translateY(-1px);
+}
+
+/* Style du tableau */
+.table-responsive {
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 2rem;
+}
+
+.table {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 0.875rem;
+    width: 100%;
+    margin-bottom: 0;
+    background-color: white;
+}
+
+/* En-têtes du tableau */
+.table thead th {
+    background-color: var(--primary-color);
+    color: var(--header-text);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+/* Cellules du tableau */
+.table td {
+    padding: 1rem;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+/* Effet rayé et hover */
+.table tbody tr:nth-child(even) {
+    background-color: #f8fafc;
+}
+
+.table tbody tr:hover {
+    background-color: var(--hover-color);
+    transition: background-color 0.2s ease;
+}
+
+/* Pagination */
+.navigation {
+    margin-top: 2rem;
+}
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.page-item {
+    margin: 0;
+}
+
+.page-link {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    color: var(--secondary-color);
+    background-color: white;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.page-link:hover {
+    background-color: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+.page-item.active .page-link {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: white;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .table {
+        font-size: 0.75rem;
+    }
+    
+    .table td, .table th {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    h1 {
+        font-size: 1.5rem;
+    }
+}
+    </style>
+{% endblock %}

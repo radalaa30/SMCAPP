@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}DemandeReappro index{% endblock %}
+
+{% block body %}
+    <h1>DemandeReappro index</h1>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>IdReappro</th>
+                <th>IdPreparateur</th>
+                <th>IdCariste</th>
+                <th>SonPicking</th>
+                <th>Adresse</th>
+                <th>Statut</th>
+                <th>CreateAt</th>
+                <th>UpdateAt</th>
+                <th>UsernamePrep</th>
+                <th>UsernameCariste</th>
+                <th>actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for demande_reappro in demande_reappros %}
+            <tr>
+                <td>{{ demande_reappro.id }}</td>
+                <td>{{ demande_reappro.idReappro }}</td>
+                <td>{{ demande_reappro.idPreparateur }}</td>
+                <td>{{ demande_reappro.idCariste }}</td>
+                <td>{{ demande_reappro.SonPicking }}</td>
+                <td>{{ demande_reappro.Adresse }}</td>
+                <td>{{ demande_reappro.Statut }}</td>
+                <td>{{ demande_reappro.CreateAt ? demande_reappro.CreateAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>{{ demande_reappro.UpdateAt ? demande_reappro.UpdateAt|date('Y-m-d H:i:s') : '' }}</td>
+                <td>{{ demande_reappro.UsernamePrep }}</td>
+                <td>{{ demande_reappro.UsernameCariste }}</td>
+                <td>
+                    <a href="{{ path('app_demande_reappro_show', {'id': demande_reappro.id}) }}">Afficher</a>
+                    <a href="{{ path('app_demande_reappro_edit', {'id': demande_reappro.id}) }}">Modifier</a>
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="12">no records found</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ path('app_demande_reappro_new') }}">Create new</a>
+{% endblock %}

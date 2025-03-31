@@ -1,0 +1,31 @@
+{% extends 'base2.html.twig' %}
+
+{% block body %}
+    <div class="container mt-4">
+        <h1>Import des données ii</h1>
+
+        {# Affichage des messages flash si disponibles #}
+        {% if app.flashes is not empty %}
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label }} mt-2">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        {% endif %}
+
+        <div class="card">
+            <div class="card-body">
+                <form action="{{ path('import_excel') }}" method="post" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="file">Fichier Excel</label>
+                        <input type="file" class="form-control" id="file" name="file" required>
+                        <small class="form-text text-muted">Formats acceptés: .xlsx, .xls, .xlsm</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3">Importer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

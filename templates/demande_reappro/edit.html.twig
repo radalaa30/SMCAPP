@@ -1,0 +1,13 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Edit DemandeReappro{% endblock %}
+
+{% block body %}
+    <h1>Modifier la demande de réapprobation</h1>
+
+    {{ include('demande_reappro/_form.html.twig', {'button_label': 'Modifier'}) }}
+
+    <a href="{{ path('admin_dashboard') }}">Retour à la liste</a>
+
+    {{ include('demande_reappro/_delete_form.html.twig') }}
+{% endblock %}

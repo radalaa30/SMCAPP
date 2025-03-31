@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Demande de réapro{% endblock %}
+
+{% block body %}
+
+{{ form_start(form) }}
+    {{ form_row(form.adresse) }}
+    <a href="#" class="btn btn-primary" onclick="this.closest('form').submit(); return false;">Envoyer</a>
+{{ form_end(form) }}
+
+{% endblock %}

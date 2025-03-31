@@ -1,0 +1,197 @@
+{# templates/inventaire_dashboard/detail.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Détail Inventaire - {{ inventaire.codeprod }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .product-card {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .product-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        .product-info .label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .product-info .value {
+            color: #0d6efd;
+        }
+        .stock-status {
+            font-size: 1.5em;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-top: 15px;
+        }
+        .status-ok {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        .status-warning {
+            background-color: #fff3cd;
+            color: #664d03;
+        }
+        .status-danger {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        .history-table {
+            margin-top: 20px;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="container-fluid py-4">
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <a href="{{ path('app_dashboard_inventaire') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour à la liste
+                </a>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                <h1>Détail Produit: {{ inventaire.codeprod }}</h1>
+                <h4>{{ inventaire.dsignprod }}</h4>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="product-card">
+                    <h3>Informations Produit</h3>
+                    
+                    <div class="product-info">
+                        <span class="label">Code Produit:</span>
+                        <span class="value">{{ inventaire.codeprod }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">Désignation:</span>
+                        <span class="value">{{ inventaire.dsignprod }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">Zone:</span>
+                        <span class="value">{{ inventaire.zone }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">Emplacement:</span>
+                        <span class="value">{{ inventaire.emplacement }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">No Palette:</span>
+                        <span class="value">{{ inventaire.nopal }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">Date d'entrée:</span>
+                        <span class="value">{{ inventaire.dateentree|date('d/m/Y') }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="product-card">
+                    <h3>État du Stock</h3>
+                    
+                    <div class="product-info">
+                        <span class="label">UV Total en Stock:</span>
+                        <span class="value">{{ inventaire.uvtotal }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">UV en Sortie:</span>
+                        <span class="value">{{ inventaire.uvensortie }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">Quantité Disponible:</span>
+                        <span class="value">{{ quantiteReelle }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">UR Disponible:</span>
+                        <span class="value">{{ inventaire.urdispo }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">UC Disponible:</span>
+                        <span class="value">{{ inventaire.ucdispo }}</span>
+                    </div>
+                    
+                    <div class="product-info">
+                        <span class="label">UR Bloquée:</span>
+                        <span class="value">{{ inventaire.urbloquee }}</span>
+                    </div>
+                    
+                    {% if quantiteReelle <= 0 %}
+                        <div class="stock-status status-danger">RUPTURE DE STOCK</div>
+                    {% elseif quantiteReelle < 10 %}
+                        <div class="stock-status status-warning">STOCK FAIBLE</div>
+                    {% else %}
+                        <div class="stock-status status-ok">STOCK DISPONIBLE</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Historique des Mouvements</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive history-table">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>No BL</th>
+                                        <th>No Commande</th>
+                                        <th>Client</th>
+                                        <th>Préparateur</th>
+                                        <th>Quantité</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mouvement in mouvements %}
+                                        <tr>
+                                            <td>{{ mouvement.updatedAt ? mouvement.updatedAt|date('d/m/Y H:i') : 'N/A' }}</td>
+                                            <td>{{ mouvement.No_Bl }}</td>
+                                            <td>{{ mouvement.No_Cmd }}</td>
+                                            <td>{{ mouvement.Client }} ({{ mouvement.Code_Client }})</td>
+                                            <td>{{ mouvement.Preparateur }}</td>
+                                            <td>{{ mouvement.Nb_art }}</td>
+                                            <td>{{ mouvement.Statut_Cde }}</td>
+                                        </tr>
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="7" class="text-center">Aucun mouvement trouvé</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

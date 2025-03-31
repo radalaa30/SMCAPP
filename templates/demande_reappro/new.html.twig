@@ -1,0 +1,11 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}New DemandeReappro{% endblock %}
+
+{% block body %}
+    <h1>Ajouter une demande</h1>
+
+    {{ include('demande_reappro/_form.html.twig') }}
+
+    <a href="{{ path('admin_dashboard') }}">Retour à la liste</a>
+{% endblock %}

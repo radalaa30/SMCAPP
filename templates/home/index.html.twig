@@ -1,0 +1,28 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Demande de réapro{% endblock %}
+
+{% block body %}
+
+<table class="table table-striped">
+ <thead>
+    <tr>
+      <th scope="col">Num</th>
+      <th scope="col">Adresse</th>
+      <th scope="col">Zone</th>
+      <th scope="col">Etat</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for inv in listeDemande %},
+    <tr>
+      <th scope="row">{{ inv.id }}</th>
+      <td>{{ inv.adresse }}  </td>
+      <td>{{ inv.zone }}  </td>
+      <td><a class="btn btn-primary btn-sm" href="{{ path('app_reapro_edit', {id: inv.id}) }}">Faire</a></td>   
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}
