@@ -1,0 +1,270 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Top produits — SMC{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    .kpi-card { border-radius: .75rem; }
+    .kpi-value { font-size: 1.75rem; font-weight: 700; }
+    .table thead th { white-space: nowrap; }
+    .code-link { text-decoration: none; }
+    .code-link:hover { text-decoration: underline; }
+    .badge-soft { background: #f1f5f9; color: #0f172a; }
+  </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0">
+      <i class="fa-solid fa-chart-column me-2"></i> Top produits ({{ start|date('d/m/Y') }} → {{ end|date('d/m/Y') }})
+    </h2>
+    <form class="d-flex gap-2" method="get" action="{{ path('app_top_products') }}">
+      <input class="form-control form-control-sm" type="date" name="start" value="{{ start|date('Y-m-d') }}">
+      <input class="form-control form-control-sm" type="date" name="end"   value="{{ end|date('Y-m-d') }}">
+      <select class="form-select form-select-sm" name="sort">
+        <option value="lines" {{ sort == 'lines' ? 'selected' : '' }}>Trier par lignes</option>
+        <option value="qty"   {{ sort == 'qty'   ? 'selected' : '' }}>Trier par Nb_art</option>
+      </select>
+      <input class="form-control form-control-sm" type="number" min="1" name="limit" value="{{ limit }}" style="width: 90px;">
+      <button class="btn btn-primary btn-sm" type="submit">
+        <i class="fa-solid fa-magnifying-glass me-1"></i> Filtrer
+      </button>
+    </form>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-3">
+      <div class="card kpi-card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted">Lignes (période)</div>
+          <div class="kpi-value">{{ totals.lignes|number_format(0, ',', ' ') }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card kpi-card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted">Total Nb_art (période)</div>
+          <div class="kpi-value">{{ totals.total_nb_art|number_format(0, ',', ' ') }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card kpi-card shadow-sm">
+        <div class="card-body">
+          <div class="text-muted">Produits affichés</div>
+          <div class="kpi-value">{{ rows|length }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-light">
+      <strong><i class="fa-solid fa-chart-simple me-1"></i> Activité des produits</strong>
+    </div>
+    <div class="card-body">
+      <canvas id="topProductsChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+      <strong><i class="fa-solid fa-list-ol me-1"></i> Classement</strong>
+      <span class="badge badge-soft">Tri: {{ sort == 'qty' ? 'Nb_art' : 'Lignes' }}</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>#</th>
+            <th>Code produit</th>
+            <th class="text-end">Lignes</th>
+            <th class="text-end">Total Nb_art</th>
+            <th class="text-end">Moy. Nb_art</th>
+            <th class="text-end">Total Nb_col</th>
+            <th class="text-end">Total Nb_pal</th>
+            <th>Dernier mouvement</th>
+            <th>Distribution</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td>
+                <a href="javascript:void(0)" class="code-link" data-code="{{ r.code_produit }}" data-start="{{ start|date('Y-m-d') }}" data-end="{{ end|date('Y-m-d') }}" onclick="openDistribution(this)">
+                  {{ r.code_produit }}
+                </a>
+              </td>
+              <td class="text-end">{{ r.lignes|number_format(0, ',', ' ') }}</td>
+              <td class="text-end">{{ r.total_nb_art|number_format(0, ',', ' ') }}</td>
+              <td class="text-end">{{ r.avg_nb_art|number_format(2, ',', ' ') }}</td>
+              <td class="text-end">{{ r.total_nb_col|number_format(0, ',', ' ') }}</td>
+              <td class="text-end">{{ r.total_nb_pal|number_format(0, ',', ' ') }}</td>
+              <td>{{ r.last_at ? r.last_at|date('d/m/Y H:i') : '-' }}</td>
+              <td>
+                <button class="btn btn-outline-secondary btn-sm" 
+                        data-code="{{ r.code_produit }}" 
+                        data-start="{{ start|date('Y-m-d') }}" 
+                        data-end="{{ end|date('Y-m-d') }}"
+                        onclick="openDistribution(this)">
+                  Voir
+                </button>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="9" class="text-center text-muted">Aucune donnée sur la période.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal fade" id="distModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-box-open me-2"></i>
+          Distribution Nb_art — <span id="distCode"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <div id="distLoading" class="text-center my-3" style="display:none;">
+          <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Chargement…</span></div>
+        </div>
+        <div id="distContent">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped">
+              <thead>
+                <tr>
+                  <th>Nb_art</th>
+                  <th class="text-end">Lignes</th>
+                  <th class="text-end">Total Nb_art</th>
+                </tr>
+              </thead>
+              <tbody id="distTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div id="distEmpty" class="text-muted text-center my-2" style="display:none;">Aucune donnée.</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function() {
+      const ctx = document.getElementById('topProductsChart');
+      if (!ctx) return;
+
+      const labels = {{ chartLabels|json_encode|raw }};
+      const dsLines = {{ chartLines|json_encode|raw }};
+      const dsQty   = {{ chartQty|json_encode|raw }};
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Lignes',
+              data: dsLines,
+              borderWidth: 1,
+              backgroundColor: 'rgba(33, 150, 243, 0.8)',
+              borderColor: 'rgba(33, 150, 243, 1)'
+            },
+            {
+              label: 'Total Nb_art',
+              data: dsQty,
+              borderWidth: 1,
+              backgroundColor: 'rgba(76, 175, 80, 0.8)',
+              borderColor: 'rgba(76, 175, 80, 1)'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'top' },
+            tooltip: {
+              callbacks: {
+                afterBody: function(ctx) {
+                  const i = ctx[0].dataIndex;
+                  const l = dsLines[i] || 0;
+                  const q = dsQty[i]   || 0;
+                  return [
+                    `Total lignes: ${l}`,
+                    `Total Nb_art: ${q}`
+                  ];
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.08)' } }
+          }
+        }
+      });
+    })();
+
+    function openDistribution(el) {
+      const code  = el.getAttribute('data-code');
+      const start = el.getAttribute('data-start');
+      const end   = el.getAttribute('data-end');
+
+      document.getElementById('distCode').textContent = code;
+      const modal = new bootstrap.Modal(document.getElementById('distModal'));
+      modal.show();
+
+      const body = document.getElementById('distTableBody');
+      const loading = document.getElementById('distLoading');
+      const empty = document.getElementById('distEmpty');
+      body.innerHTML = '';
+      empty.style.display = 'none';
+      loading.style.display = 'block';
+
+      const url = new URL('{{ path("app_top_products_distribution", {code: "__CODE__"}) }}'.replace('__CODE__', encodeURIComponent(code)), window.location.origin);
+      if (start) url.searchParams.set('start', start);
+      if (end)   url.searchParams.set('end', end);
+
+      fetch(url)
+        .then(r => r.json())
+        .then(json => {
+          loading.style.display = 'none';
+          if (!json.data || json.data.length === 0) {
+            empty.style.display = 'block';
+            return;
+          }
+          const rows = json.data;
+          body.innerHTML = rows.map(r => `
+            <tr>
+              <td>${r.nb_art}</td>
+              <td class="text-end">${(r.lignes ?? 0).toLocaleString('fr-FR')}</td>
+              <td class="text-end">${(r.total_nb_art ?? 0).toLocaleString('fr-FR')}</td>
+            </tr>
+          `).join('');
+        })
+        .catch(() => {
+          loading.style.display = 'none';
+          empty.style.display = 'block';
+        });
+    }
+  </script>
+{% endblock %}
