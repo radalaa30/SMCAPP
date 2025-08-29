@@ -63,6 +63,8 @@
         }
         .stats-table tr:nth-child(even) { background-color: #f9f9f9; }
         .agence-row { background-color: #e3f2fd !important; }
+        .gsb-row { background-color: #ffe0b2 !important; }
+        .gsb-lm-row { background-color: #ffccbc !important; }
         .chart-container { height: 400px; margin-top: 20px; }
         .stats-card {
             background: #fff;
@@ -96,6 +98,11 @@
             margin: 2px;
             font-size: 0.9em;
         }
+        .ligne-suspendus {
+            background-color: #ffc107 !important;
+            color: #000 !important;
+            font-weight: bold;
+        }
     </style>
 {% endblock %}
 
@@ -122,8 +129,7 @@
     <div class="stats-section">
         <h2 class="stats-header">Vue d'ensemble</h2>
         <div class="row g-4">
-            {# Total préparations #}
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="stats-card">
                     <h4 class="mb-3">Total préparations</h4>
                     <div class="stats-value">{{ statsGlobales.total_preparations }}</div>
@@ -131,8 +137,7 @@
                 </div>
             </div>
 
-            {# Préparations terminées #}
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="stats-card">
                     <h4 class="mb-3">Terminées</h4>
                     <div class="stats-value text-success">{{ statsGlobales.preparations_terminees }}</div>
@@ -145,8 +150,7 @@
                 </div>
             </div>
 
-            {# Stats clients #}
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <div class="stats-card">
                     <h4 class="mb-3">Clients</h4>
                     <div class="mb-3">
@@ -160,8 +164,49 @@
                 </div>
             </div>
 
-            {# Stats agence #}
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <h4 class="mb-3" style="font-style: italic; font-size: 0.8em;">(Dont client TH)</h4>
+                    <div class="mb-3">
+                        <h5>Total Préparations</h5>
+                        <div class="stats-value">{{ totalPreparationsClientGSB }}</div>
+                    </div>
+                    <div>
+                        <h5>Reste à préparer</h5>
+                        <div class="stats-value">{{ preparationsClientGSBEnCours }}</div>
+                    </div>
+                    <div class="progress mt-3">
+                        {% set pourcentageGSB = totalPreparationsClientGSB > 0 ? (preparationsTermineesClientGSB / totalPreparationsClientGSB * 100)|round(2) : 0 %}
+                        <div class="progress-bar {% if pourcentageGSB < 50 %}bg-warning{% elseif pourcentageGSB < 80 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ pourcentageGSB }}%">
+                            {{ pourcentageGSB }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-2">
+                <div class="stats-card">
+                    <h4 class="mb-3" style="font-style: italic; font-size: 0.8em;">(Dont Leroy Merlin)</h4>
+                    <div class="mb-3">
+                        <h5>Total Préparations</h5>
+                        <div class="stats-value">{{ totalPreparationsClientGSBLM }}</div>
+                    </div>
+                    <div>
+                        <h5>Reste à préparer</h5>
+                        <div class="stats-value">{{ preparationsClientGSBLMEnCours }}</div>
+                    </div>
+                    <div class="progress mt-3">
+                        {% set pourcentageGSBLM = totalPreparationsClientGSBLM > 0 ? (preparationsTermineesClientGSBLM / totalPreparationsClientGSBLM * 100)|round(2) : 0 %}
+                        <div class="progress-bar {% if pourcentageGSBLM < 50 %}bg-warning{% elseif pourcentageGSBLM < 80 %}bg-warning{% else %}bg-success{% endif %}"
+                             style="width: {{ pourcentageGSBLM }}%">
+                            {{ pourcentageGSBLM }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-2">
                 <div class="stats-card">
                     <h4 class="mb-3">Agences</h4>
                     <div class="mb-3">
@@ -171,6 +216,10 @@
                     <div>
                         <h5>Reste à préparer</h5>
                         <div class="stats-value">{{ statsGlobales.preparations_agence_en_cours }}</div>
+                        <p style="font-style: italic; font-size: 1em;">Dont KO Agences: {{ preparationsAgenceStatusKO }}</p>
+                        <p style="font-style: italic; font-size: 1em; color: #ffc107;">
+                            <i class="fas fa-pause-circle"></i> Lignes suspendues: {{ preparationsNonFlasheAvecDate }}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -179,9 +228,7 @@
 
     {# Performance des préparateurs #}
     <div class="stats-section">
-    {# Affiche le contenu complet de la variable statsPreparateur #}
         <h2 class="stats-header">Performance des Préparateurs</h2>
-
         <div class="chart-container">
             <canvas id="preparateursChart"></canvas>
         </div>
@@ -192,6 +239,56 @@
         <h2 class="stats-header">Performance des Agences</h2>
         <div class="chart-container">
             <canvas id="agencesChart"></canvas>
+        </div>
+    </div>
+
+    {# Transporteurs #}
+    <div class="stats-section">
+        <h2 class="stats-header">Transporteurs</h2>
+        <div class="chart-container">
+            <canvas id="transporteursChart"></canvas>
+        </div>
+    </div>
+
+    {# Statistiques par Préparateur #}
+    <div class="stats-section">
+        <h2 class="stats-header">Statistiques par Préparateur</h2>
+        <div class="table-responsive">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Préparateur</th>
+                        <th>Total</th>
+                        <th>Terminées</th>
+                        <th>En cours</th>   
+                        <th>Avancement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in statsPreparateur %}
+                        <tr class="{% if stat.Preparateur == 'Ligne suspendus' %}ligne-suspendus{% endif %}">
+                            <td>
+                                {% if stat.Preparateur == 'Ligne suspendus' %}
+                                    <i class="fas fa-pause-circle"></i> {{ stat.Preparateur }}
+                                {% else %}
+                                    {{ stat.Preparateur }}
+                                {% endif %}
+                            </td>
+                            <td>{{ stat.total_preparations }}</td>
+                            <td class="text-success">{{ stat.preparations_terminees }}</td>
+                            <td class="text-primary">{{ stat.preparations_en_cours }}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                         style="width: {{ stat.pourcentage_avancement }}%">
+                                        {{ stat.pourcentage_avancement }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
@@ -217,14 +314,104 @@
                             <td>{{ stat.Client }}</td>
                             <td>{{ stat.Code_Client }}</td>
                             <td>
-                                
+                                {% if stat.preparateurs is defined %}
+                                    {% for preparateur in stat.preparateurs %}
+                                        <span class="preparateur-badge">{{ preparateur }}</span>
+                                    {% endfor %}
+                                {% endif %}
                             </td>
                             <td>{{ stat.total_preparations }}</td>
                             <td>{{ stat.preparations_terminees }}</td>
                             <td>{{ stat.preparations_en_cours }}</td>
                             <td>
                                 <div class="progress">
-                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}warning{% endif %}"
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                         style="width: {{ stat.pourcentage_avancement }}%">
+                                        {{ stat.pourcentage_avancement }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Statistiques par Transporteur #}
+    <div class="stats-section">
+        <h2 class="stats-header">Statistiques par Transporteur</h2>
+        <div class="table-responsive">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Transporteur</th>
+                        <th>Total</th>
+                        <th>Terminées</th>
+                        <th>En cours</th>
+                        <th>Avancement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in statsTransporteur %}
+                        <tr>
+                            <td>{{ stat.Transporteur ?? 'Inconnu' }}</td>
+                            <td>{{ stat.total_preparations }}</td>
+                            <td>{{ stat.preparations_terminees }}</td>
+                            <td>{{ stat.preparations_en_cours }}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
+                                         style="width: {{ stat.pourcentage_avancement }}%">
+                                        {{ stat.pourcentage_avancement }}%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5" class="text-center text-muted">Aucune donnée transporteur aujourd'hui.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {# Statistiques par Client GSB (Therminport) #}
+    <div class="stats-section">
+        <h2 class="stats-header">Statistiques Clients TH</h2>
+        <div class="table-responsive">
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Code</th>
+                        <th>Commande</th>
+                        <th>Préparateurs</th>
+                        <th>Total</th>
+                        <th>Terminées</th>
+                        <th>En cours</th>
+                        <th>Avancement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in statsClientGSB %}
+                        <tr class="{% if stat.Client starts with 'LEROY MERLIN' %}gsb-lm-row{% else %}gsb-row{% endif %}">
+                            <td>{{ stat.Client }}</td>
+                            <td>{{ stat.Code_Client }}</td>
+                            <td>{{ stat.No_Cmd }}</td>
+                            <td>
+                                {% if stat.preparateurs is defined %}
+                                    {% for preparateur in stat.preparateurs %}
+                                        <span class="preparateur-badge">{{ preparateur }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </td>
+                            <td>{{ stat.total_preparations }}</td>
+                            <td>{{ stat.preparations_terminees }}</td>
+                            <td>{{ stat.preparations_en_cours }}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
                                          style="width: {{ stat.pourcentage_avancement }}%">
                                         {{ stat.pourcentage_avancement }}%
                                     </div>
@@ -259,14 +446,18 @@
                             <td>{{ stat.Client }}</td>
                             <td>{{ stat.Code_Client }}</td>
                             <td>
-                                
+                                {% if stat.preparateurs is defined %}
+                                    {% for preparateur in stat.preparateurs %}
+                                        <span class="preparateur-badge">{{ preparateur }}</span>
+                                    {% endfor %}
+                                {% endif %}
                             </td>
                             <td>{{ stat.total_preparations }}</td>
                             <td>{{ stat.preparations_terminees }}</td>
                             <td>{{ stat.preparations_en_cours }}</td>
                             <td>
                                 <div class="progress">
-                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}warning{% endif %}"
+                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
                                          style="width: {{ stat.pourcentage_avancement }}%">
                                         {{ stat.pourcentage_avancement }}%
                                     </div>
@@ -286,138 +477,207 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-    // Graphique des préparateurs
-    const ctxPreparateurs = document.getElementById('preparateursChart');
-    new Chart(ctxPreparateurs, {
-        type: 'bar',
-        data: {
-            labels: {{ dataPreparateurs.labels|json_encode|raw }},
-            datasets: [
-                {
-                    label: 'Préparations Client',
-                    data: {{ dataPreparateurs.termineesClient|json_encode|raw }},
-                    backgroundColor: 'rgba(165, 181, 64, 0.8)',
-                    borderColor: 'rgba(165, 181, 64, 0.8)',
-                    borderWidth: 1
-                },
-                {
-                    label: 'Préparations Agence',
-                    data: {{ dataPreparateurs.termineesAgence|json_encode|raw }},
-                    backgroundColor: 'rgba(55, 55, 225, 0.8)',
-                    borderColor: 'rgba(55, 55, 225, 0.8)',
-                    borderWidth: 1
-                },
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                    labels: {
-                        padding: 20
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        afterBody: function(context) {
-                            const index = context[0].dataIndex;
-                            const pourcentages = {{ dataPreparateurs.pourcentages|json_encode|raw }};
-                            const totalClient = {{ dataPreparateurs.termineesClient|json_encode|raw }}[index] + 
-                                             {{ dataPreparateurs.enCoursClient|json_encode|raw }}[index];
-                            const totalAgence = {{ dataPreparateurs.termineesAgence|json_encode|raw }}[index] + 
-                                             {{ dataPreparateurs.enCoursAgence|json_encode|raw }}[index];
-                            return [
-                                `Taux d'avancement: ${pourcentages[index]}%`,
-                                `Total Client: ${totalClient}`,
-                                `Total Agence: ${totalAgence}`,
-                                `Total Global: ${totalClient + totalAgence}`
-                            ];
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    stacked: true,
-                    grid: { 
-                        display: false 
-                    },
-                    ticks: {
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
-                },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    grid: { 
-                        color: 'rgba(0, 0, 0, 0.1)' 
-                    }
-                }
+        // --------- Préparateurs (garder les mêmes infos au survol)
+        const ctxPreparateurs = document.getElementById('preparateursChart');
+        const statsPreparateur = {{ statsPreparateur|json_encode|raw }};
+        const suspenduesData = {{ dataPreparateurs.labels|json_encode|raw }}.map(label => {
+            if (label === 'Ligne suspendus') {
+                const stat = statsPreparateur.find(s => s.Preparateur === 'Ligne suspendus');
+                return stat ? stat.total_preparations : 0;
             }
-        }
-    });
+            return 0;
+        });
 
-    // Graphique des agences 
-    const ctxAgences = document.getElementById('agencesChart');
-    new Chart(ctxAgences, {
-        type: 'bar',
-        data: {
-            labels: {{ dataAgences.labels|json_encode|raw }},
-            datasets: [{
-                label: 'Préparations terminées',
-                data: {{ dataAgences.terminees|json_encode|raw }},
-                backgroundColor: 'rgba(33, 150, 243, 0.8)',
-                borderColor: 'rgba(33, 150, 243, 1)',
-                borderWidth: 1
-            }, {
-                label: 'En cours',
-                data: {{ dataAgences.enCours|json_encode|raw }},
-                backgroundColor: 'rgba(255, 167, 38, 0.8)',
-                borderColor: 'rgba(255, 167, 38, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top'
-                },
-                tooltip: {
-                    callbacks: {
-                       afterBody: function(context) {
-                            const index = context[0].dataIndex;
-                            const pourcentages = {{ dataAgences.pourcentages|json_encode|raw }};
-                            const terminees = {{ dataAgences.terminees|json_encode|raw }}[index];
-                            const enCours = {{ dataAgences.enCours|json_encode|raw }}[index];
-                            const total = terminees + enCours;
-                            
-                            return [
-                                `Taux d'avancement: ${pourcentages[index]}%`,
-                                `Total: ${total}`
-                            ];
+        new Chart(ctxPreparateurs, {
+            type: 'bar',
+            data: {
+                labels: {{ dataPreparateurs.labels|json_encode|raw }},
+                datasets: [
+                    {
+                        label: 'Préparations Client Standard',
+                        data: {{ dataPreparateurs.termineesClient|json_encode|raw }},
+                        backgroundColor: 'rgba(165, 181, 64, 0.8)',
+                        borderColor: 'rgba(165, 181, 64, 0.8)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Préparations TH Leroy Merlin',
+                        data: {{ dataPreparateurs.termineesClientGSBLM|json_encode|raw }},
+                        backgroundColor: 'rgba(255, 152, 0, 0.8)',
+                        borderColor: 'rgba(255, 152, 0, 0.8)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Préparations TH Autres',
+                        data: {{ dataPreparateurs.termineesClientGSBAutres|json_encode|raw }},
+                        backgroundColor: 'rgba(255, 87, 34, 0.8)',
+                        borderColor: 'rgba(255, 87, 34, 0.8)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Préparations Agence',
+                        data: {{ dataPreparateurs.termineesAgence|json_encode|raw }},
+                        backgroundColor: 'rgba(55, 55, 225, 0.8)',
+                        borderColor: 'rgba(55, 55, 225, 0.8)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Lignes Suspendues',
+                        data: suspenduesData,
+                        backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { padding: 20 } },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const pourcentages = {{ dataPreparateurs.pourcentages|json_encode|raw }};
+                                const totalClientStandard = ({{ dataPreparateurs.termineesClient|json_encode|raw }}[index] || 0) + ({{ dataPreparateurs.enCoursClient|json_encode|raw }}[index] || 0);
+                                const totalClientGSBLM = ({{ dataPreparateurs.termineesClientGSBLM|json_encode|raw }}[index] || 0) + ({{ dataPreparateurs.enCoursClientGSBLM|json_encode|raw }}[index] || 0);
+                                const totalClientGSBAutres = ({{ dataPreparateurs.termineesClientGSBAutres|json_encode|raw }}[index] || 0) + ({{ dataPreparateurs.enCoursClientGSBAutres|json_encode|raw }}[index] || 0);
+                                const totalAgence = ({{ dataPreparateurs.termineesAgence|json_encode|raw }}[index] || 0) + ({{ dataPreparateurs.enCoursAgence|json_encode|raw }}[index] || 0);
+                                const suspendues = suspenduesData[index] || 0;
+
+                                return [
+                                    `Taux d'avancement: ${pourcentages[index] || 0}%`,
+                                    `Total Client Standard: ${totalClientStandard}`,
+                                    `Total TH Leroy Merlin: ${totalClientGSBLM}`,
+                                    `Total TH Autres: ${totalClientGSBAutres}`,
+                                    `Total Agence: ${totalAgence}`,
+                                    `Lignes Suspendues: ${suspendues}`,
+                                    `Total Global: ${totalClientStandard + totalClientGSBLM + totalClientGSBAutres + totalAgence + suspendues}`
+                                ];
+                            }
                         }
                     }
-                }
-            },
-            scales: {
-                x: {
-                    stacked: true,
-                    grid: { display: false }
                 },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { maxRotation: 45, minRotation: 45 }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                    }
                 }
             }
-        }
-    });
-});
-   
+        });
+
+        // --------- Agences (mêmes infos au survol : % + total)
+        const ctxAgences = document.getElementById('agencesChart');
+        new Chart(ctxAgences, {
+            type: 'bar',
+            data: {
+                labels: {{ dataAgences.labels|json_encode|raw }},
+                datasets: [
+                    {
+                        label: 'Préparations terminées',
+                        data: {{ dataAgences.terminees|json_encode|raw }},
+                        backgroundColor: 'rgba(33, 150, 243, 0.8)',
+                        borderColor: 'rgba(33, 150, 243, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'En cours',
+                        data: {{ dataAgences.enCours|json_encode|raw }},
+                        backgroundColor: 'rgba(255, 167, 38, 0.8)',
+                        borderColor: 'rgba(255, 167, 38, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const pourcentages = {{ dataAgences.pourcentages|json_encode|raw }};
+                                const terminees = ({{ dataAgences.terminees|json_encode|raw }}[index] || 0);
+                                const enCours = ({{ dataAgences.enCours|json_encode|raw }}[index] || 0);
+                                const total = terminees + enCours;
+                                return [
+                                    `Taux d'avancement: ${pourcentages[index] || 0}%`,
+                                    `Total: ${total}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0, 0, 0, 0.1)' } }
+                }
+            }
+        });
+
+        // --------- Transporteurs (mêmes infos au survol : % + total)
+        const ctxTransporteurs = document.getElementById('transporteursChart');
+        new Chart(ctxTransporteurs, {
+            type: 'bar',
+            data: {
+                labels: {{ dataTransporteurs.labels|json_encode|raw }},
+                datasets: [
+                    {
+                        label: 'Terminées',
+                        data: {{ dataTransporteurs.terminees|json_encode|raw }},
+                        backgroundColor: 'rgba(76, 175, 80, 0.8)',
+                        borderColor: 'rgba(76, 175, 80, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'En cours',
+                        data: {{ dataTransporteurs.enCours|json_encode|raw }},
+                        backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                        borderColor: 'rgba(255, 193, 7, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            afterBody: function(context) {
+                                const index = context[0].dataIndex;
+                                const pourcentages = {{ dataTransporteurs.pourcentages|json_encode|raw }};
+                                const t = ({{ dataTransporteurs.terminees|json_encode|raw }}[index] || 0);
+                                const e = ({{ dataTransporteurs.enCours|json_encode|raw }}[index] || 0);
+                                const total = t + e;
+                                return [
+                                    `Taux d'avancement: ${pourcentages[index] || 0}%`,
+                                    `Total: ${total}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: { stacked: true, grid: { display: false } },
+                    y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(0,0,0,0.1)' } }
+                }
+            }
+        });
+      });
     </script>
 {% endblock %}

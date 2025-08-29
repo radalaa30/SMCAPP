@@ -1,0 +1,565 @@
+{% extends 'inventairecompt/base.html.twig' %}
+
+{% block title %}Rapport d'écarts - {{ codeprod }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .report-header {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .stats-card {
+            transition: transform 0.2s;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .ecart-positif {
+            background-color: #d4edda !important;
+            border-left: 4px solid #28a745;
+        }
+        
+        .ecart-negatif {
+            background-color: #f8d7da !important;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .ecart-majeur {
+            background-color: #fff3cd !important;
+            border-left: 4px solid #ffc107;
+            font-weight: bold;
+        }
+        
+        .ecart-conforme {
+            background-color: #d1ecf1 !important;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        .progress-ecart {
+            height: 20px;
+            border-radius: 10px;
+        }
+        
+        .table-ecarts th {
+            background-color: #343a40;
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .badge-ecart {
+            font-size: 0.9em;
+            padding: 0.5em 0.8em;
+        }
+        
+        .comment-tooltip {
+            cursor: help;
+            border-bottom: 1px dotted #6c757d;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 1rem 0;
+        }
+        
+        .print-section {
+            page-break-inside: avoid;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .report-header {
+                background: #343a40 !important;
+                color: white !important;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <!-- En-tête du rapport -->
+    <div class="report-header print-section">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2><i class="fas fa-chart-line me-3"></i>Rapport d'Écarts Inventaire</h2>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Code Produit:</strong> {{ codeprod|upper }}</p>
+                        <p class="mb-1"><strong>Date:</strong> {{ "now"|date('d/m/Y H:i') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Session:</strong> {{ session_id|slice(0, 8) }}...</p>
+                        <p class="mb-1"><strong>Opérateur:</strong> {{ app.user ? app.user.userIdentifier : 'Anonyme' }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-end no-print">
+                <div class="btn-group-vertical">
+                    <a href="{{ path('app_inventairecompt_comptage', {codeprod: codeprod}) }}" class="btn btn-light mb-2">
+                        <i class="fas fa-arrow-left me-2"></i>Retour Comptage
+                    </a>
+                    <button class="btn btn-success mb-2" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>Imprimer
+                    </button>
+                    <a href="{{ path('app_inventairecompt_export_comptages', {codeprod: codeprod}) }}" class="btn btn-info">
+                        <i class="fas fa-download me-2"></i>Export CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Résumé statistiques -->
+    <div class="row mb-4 print-section">
+        <div class="col-md-3">
+            <div class="card stats-card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-clipboard-list fa-3x text-primary mb-3"></i>
+                    <h3 class="text-primary">{{ statistiques.total_emplacements }}</h3>
+                    <p class="card-text">Total Emplacements</p>
+                    <small class="text-muted">Comptés dans cette session</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <h3 class="text-success">{{ statistiques.emplacements_valides }}</h3>
+                    <p class="card-text">Validés</p>
+                    <small class="text-muted">
+                        {{ statistiques.total_emplacements > 0 ? ((statistiques.emplacements_valides / statistiques.total_emplacements) * 100)|round(1) : 0 }}% 
+                        du total
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <h3 class="text-warning">{{ (statistiques.surplus + statistiques.manquants) }}</h3>
+                    <p class="card-text">Avec Écarts</p>
+                    <small class="text-muted">
+                        {{ statistiques.surplus }} surplus, {{ statistiques.manquants }} manquants
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-balance-scale fa-3x text-info mb-3"></i>
+                    <h3 class="text-info">{{ statistiques.ecart_total|default(0) }}</h3>
+                    <p class="card-text">Écart Net</p>
+                    <small class="text-muted">
+                        {% if statistiques.ecart_total > 0 %}
+                            <span class="text-success">Surplus global</span>
+                        {% elseif statistiques.ecart_total < 0 %}
+                            <span class="text-danger">Déficit global</span>
+                        {% else %}
+                            <span class="text-info">Équilibré</span>
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphique de répartition des écarts -->
+    <div class="row mb-4 print-section no-print">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie me-2"></i>Répartition des Types d'Écarts</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ecartsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar me-2"></i>Progression Validation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Taux de validation</label>
+                        <div class="progress progress-ecart">
+                            {% set taux_validation = statistiques.total_emplacements > 0 ? (statistiques.emplacements_valides / statistiques.total_emplacements) * 100 : 0 %}
+                            <div class="progress-bar {% if taux_validation == 100 %}bg-success{% elseif taux_validation >= 80 %}bg-info{% elseif taux_validation >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 style="width: {{ taux_validation }}%">
+                                {{ taux_validation|round(1) }}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h5 class="text-success">{{ statistiques.conformes }}</h5>
+                            <small>Conformes</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="text-warning">{{ statistiques.surplus }}</h5>
+                            <small>Surplus</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="text-danger">{{ statistiques.manquants }}</h5>
+                            <small>Manquants</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écarts majeurs (si il y en a) -->
+    {% if ecarts_majeurs|length > 0 %}
+    <div class="row mb-4 print-section">
+        <div class="col-md-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Écarts Majeurs (> 10%)
+                        <span class="badge bg-light text-danger ms-2">{{ ecarts_majeurs|length }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Emplacement</th>
+                                    <th class="text-center">Théorique</th>
+                                    <th class="text-center">Compté</th>
+                                    <th class="text-center">Écart</th>
+                                    <th class="text-center">% Écart</th>
+                                    <th>Commentaire</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ecart in ecarts_majeurs %}
+                                <tr class="table-warning">
+                                    <td><strong>{{ ecart.emplacement }}</strong></td>
+                                    <td class="text-center">{{ ecart.qteTheorique }}</td>
+                                    <td class="text-center">{{ ecart.qteComptee }}</td>
+                                    <td class="text-center">
+                                        <span class="badge {% if ecart.ecart > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ ecart.ecart > 0 ? '+' ~ ecart.ecart : ecart.ecart }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong>{{ ecart.pourcentageEcart ? ecart.pourcentageEcart|round(1) : 0 }}%</strong>
+                                    </td>
+                                    <td>
+                                        {% if ecart.commentaire %}
+                                            <span class="comment-tooltip" title="{{ ecart.commentaire }}">
+                                                <i class="fas fa-comment text-info"></i>
+                                                {{ ecart.commentaire|slice(0, 30) }}{% if ecart.commentaire|length > 30 %}...{% endif %}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tableau détaillé de tous les comptages -->
+    <div class="row print-section">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h5 class="mb-0">
+                                <i class="fas fa-table me-2"></i>Détail des Comptages
+                                <span class="badge bg-primary ms-2">{{ comptages|length }}</span>
+                            </h5>
+                        </div>
+                        <div class="col-md-6 text-end no-print">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="filterTable('all')">Tous</button>
+                                <button class="btn btn-outline-success" onclick="filterTable('conforme')">Conformes</button>
+                                <button class="btn btn-outline-warning" onclick="filterTable('ecart')">Avec écarts</button>
+                                <button class="btn btn-outline-danger" onclick="filterTable('majeur')">Majeurs</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-ecarts mb-0" id="comptagesTable">
+                            <thead>
+                                <tr>
+                                    <th style="width: 15%">Emplacement</th>
+                                    <th style="width: 8%">Zone</th>
+                                    <th style="width: 10%">Palette</th>
+                                    <th style="width: 10%" class="text-center">Théorique</th>
+                                    <th style="width: 10%" class="text-center">Compté</th>
+                                    <th style="width: 10%" class="text-center">Écart</th>
+                                    <th style="width: 8%" class="text-center">% Écart</th>
+                                    <th style="width: 10%" class="text-center">Statut</th>
+                                    <th style="width: 19%">Commentaire</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for comptage in comptages %}
+                                <tr class="comptage-row
+                                    {% if comptage.ecart == 0 %}ecart-conforme
+                                    {% elseif comptage.isEcartMajeur %}ecart-majeur
+                                    {% elseif comptage.ecart > 0 %}ecart-positif
+                                    {% else %}ecart-negatif
+                                    {% endif %}"
+                                    data-filter-type="{% if comptage.ecart == 0 %}conforme{% elseif comptage.isEcartMajeur %}majeur{% else %}ecart{% endif %}">
+                                    
+                                    <td>
+                                        <strong>{{ comptage.emplacement }}</strong>
+                                    </td>
+                                    
+                                    <td>
+                                        {% if comptage.zone %}
+                                            <span class="badge bg-secondary">{{ comptage.zone }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td>
+                                        {% if comptage.nopal %}
+                                            <small>{{ comptage.nopal }}</small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ comptage.qteTheorique }}</span>
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ comptage.qteComptee }}</span>
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        {% if comptage.ecart == 0 %}
+                                            <span class="badge bg-secondary">0</span>
+                                        {% else %}
+                                            <span class="badge {% if comptage.ecart > 0 %}bg-success{% else %}bg-danger{% endif %} badge-ecart">
+                                                {{ comptage.ecart > 0 ? '+' ~ comptage.ecart : comptage.ecart }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        {% if comptage.pourcentageEcart %}
+                                            <strong class="{% if comptage.isEcartMajeur %}text-warning{% endif %}">
+                                                {{ comptage.pourcentageEcart|round(1) }}%
+                                            </strong>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    
+                                    <td class="text-center">
+                                        {% set statut = comptage.statutFormate %}
+                                        <span class="{{ statut.class }}">
+                                            <i class="{{ statut.icon }} me-1"></i>{{ statut.text }}
+                                        </span>
+                                    </td>
+                                    
+                                    <td>
+                                        {% if comptage.commentaire %}
+                                            <span class="comment-tooltip" title="{{ comptage.commentaire }}">
+                                                <i class="fas fa-comment text-info me-1"></i>
+                                                {{ comptage.commentaire|slice(0, 40) }}{% if comptage.commentaire|length > 40 %}...{% endif %}
+                                            </span>
+                                            {% if comptage.typeEcart %}
+                                                <br><small class="text-muted">Type: {{ comptage.typeEcart }}</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-dark">
+                                <tr>
+                                    <th colspan="3" class="text-end">TOTAUX:</th>
+                                    <th class="text-center">{{ statistiques.total_theorique }}</th>
+                                    <th class="text-center">{{ statistiques.total_compte }}</th>
+                                    <th class="text-center">
+                                        <span class="badge {% if statistiques.ecart_total > 0 %}bg-success{% elseif statistiques.ecart_total < 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+                                            {{ statistiques.ecart_total > 0 ? '+' ~ statistiques.ecart_total : statistiques.ecart_total }}
+                                        </span>
+                                    </th>
+                                    <th class="text-center">
+                                        {% if statistiques.total_theorique > 0 %}
+                                            {{ ((statistiques.ecart_total / statistiques.total_theorique) * 100)|round(1) }}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </th>
+                                    <th colspan="2" class="text-center text-light">
+                                        {{ statistiques.total_emplacements }} emplacements
+                                    </th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Résumé et recommandations -->
+    <div class="row mt-4 print-section">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-lightbulb me-2"></i>Résumé et Recommandations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-chart-line me-2 text-info"></i>Analyse des Écarts</h6>
+                            <ul class="list-unstyled">
+                                {% if statistiques.ecart_total == 0 %}
+                                    <li><i class="fas fa-check-circle text-success me-2"></i>Inventaire parfaitement équilibré</li>
+                                {% elseif statistiques.ecart_total > 0 %}
+                                    <li><i class="fas fa-arrow-up text-success me-2"></i>Surplus global de {{ statistiques.ecart_total }} unités</li>
+                                {% else %}
+                                    <li><i class="fas fa-arrow-down text-danger me-2"></i>Déficit global de {{ statistiques.ecart_total|abs }} unités</li>
+                                {% endif %}
+                                
+                                {% if ecarts_majeurs|length > 0 %}
+                                    <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>{{ ecarts_majeurs|length }} écart(s) majeur(s) à investiguer</li>
+                                {% else %}
+                                    <li><i class="fas fa-check text-success me-2"></i>Aucun écart majeur détecté</li>
+                                {% endif %}
+                                
+                                <li><i class="fas fa-percentage text-info me-2"></i>Taux de conformité: {{ statistiques.total_emplacements > 0 ? ((statistiques.conformes / statistiques.total_emplacements) * 100)|round(1) : 0 }}%</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-tasks me-2 text-warning"></i>Actions Recommandées</h6>
+                            <ul class="list-unstyled">
+                                {% if statistiques.emplacements_valides < statistiques.total_emplacements %}
+                                    <li><i class="fas fa-clock text-warning me-2"></i>Finaliser la validation des {{ statistiques.total_emplacements - statistiques.emplacements_valides }} emplacements restants</li>
+                                {% endif %}
+                                
+                                {% if ecarts_majeurs|length > 0 %}
+                                    <li><i class="fas fa-search text-danger me-2"></i>Investiguer les écarts majeurs prioritairement</li>
+                                {% endif %}
+                                
+                                {% if statistiques.avec_commentaires > 0 %}
+                                    <li><i class="fas fa-comment text-info me-2"></i>Analyser les {{ statistiques.avec_commentaires }} commentaires saisis</li>
+                                {% endif %}
+                                
+                                <li><i class="fas fa-save text-success me-2"></i>Archiver ce rapport pour traçabilité</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Graphique en camembert des écarts
+    const ctx = document.getElementById('ecartsChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Conformes', 'Surplus', 'Manquants'],
+                datasets: [{
+                    data: [{{ statistiques.conformes }}, {{ statistiques.surplus }}, {{ statistiques.manquants }}],
+                    backgroundColor: [
+                        '#17a2b8',
+                        '#28a745', 
+                        '#dc3545'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+    
+    // Tooltips pour les commentaires
+    const tooltips = document.querySelectorAll('.comment-tooltip');
+    tooltips.forEach(tooltip => {
+        new bootstrap.Tooltip(tooltip);
+    });
+});
+
+// Filtrage du tableau
+function filterTable(type) {
+    const rows = document.querySelectorAll('.comptage-row');
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    
+    // Reset active button
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(type) || type === 'all') {
+            btn.classList.add('active');
+        }
+    });
+    
+    rows.forEach(row => {
+        if (type === 'all') {
+            row.style.display = '';
+        } else {
+            const filterType = row.dataset.filterType;
+            row.style.display = filterType === type ? '' : 'none';
+        }
+    });
+}
+
+// Auto-print si paramètre URL
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('print') === '1') {
+    window.setTimeout(() => window.print(), 1000);
+}
+</script>
+{% endblock %}

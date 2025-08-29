@@ -1,0 +1,292 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Détail du BL #{{ blencour.numBl }}{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .bl-detail-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px 0;
+    }
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        padding: 1rem 1.25rem;
+    }
+    .card-header h4 {
+        margin: 0;
+        font-weight: 600;
+        color: #343a40;
+    }
+    .card-body {
+        padding: 1.5rem;
+    }
+    .page-title {
+        margin-bottom: 20px;
+        color: #343a40;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .btn-back {
+        background-color: #6c757d;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        font-weight: 500;
+        transition: background-color 0.2s;
+    }
+    .btn-back:hover {
+        background-color: #5a6268;
+        color: white;
+        text-decoration: none;
+    }
+    .btn-back i {
+        margin-right: 0.5rem;
+    }
+    /* Badges pour le statut */
+    .status-badge {
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 700;
+        border-radius: 0.25rem;
+        display: inline-block;
+        text-align: center;
+        min-width: 80px;
+    }
+    .status-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .status-processing {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .status-completed {
+        background-color: #28a745;
+        color: white;
+    }
+    /* Badges pour le picking */
+    .badge-ok {
+        background-color: #17a2b8;
+        color: white;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        margin-right: 5px;
+    }
+    .badge-nok {
+        background-color: #dc3545;
+        color: white;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    /* Détails du BL */
+    .bl-info-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+    .bl-info-item {
+        flex: 1 0 50%;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid #f2f2f2;
+    }
+    .bl-info-label {
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+    .bl-info-value {
+        font-size: 1.1rem;
+    }
+    /* Actions */
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e9ecef;
+    }
+    .btn-edit {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .btn-edit:hover {
+        background-color: #e0a800;
+        color: #212529;
+    }
+    .btn-delete {
+        background-color: #dc3545;
+        color: white;
+    }
+    .btn-delete:hover {
+        background-color: #c82333;
+        color: white;
+    }
+    .btn-complete {
+        background-color: #28a745;
+        color: white;
+    }
+    .btn-complete:hover {
+        background-color: #218838;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="bl-detail-container">
+    <div class="page-title">
+        <h1><i class="fas fa-file-invoice me-2"></i>BL #{{ blencour.numBl }}</h1>
+        <a href="{{ path('app_blencours_index') }}" class="btn-back">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+    </div>
+    
+    {# Affichage des messages flash #}
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+    
+    <div class="card">
+        <div class="card-header">
+            <h4>
+                <i class="fas fa-info-circle me-2"></i>Informations du BL
+                
+                {# Badge de statut #}
+                {% set statusClass = '' %}
+                {% if blencour.statut == 'En attente' %}
+                    {% set statusClass = 'status-pending' %}
+                {% elseif blencour.statut == 'En cours' %}
+                    {% set statusClass = 'status-processing' %}
+                {% else %}
+                    {% set statusClass = 'status-completed' %}
+                {% endif %}
+                <span class="status-badge ms-2 {{ statusClass }}">{{ blencour.statut }}</span>
+                
+                {# Badges de type #}
+                {% if blencour.Pickingok %}
+                    <span class="badge-ok ms-2"><i class="fas fa-check me-1"></i>OK</span>
+                {% endif %}
+                {% if blencour.Pickingnok %}
+                    <span class="badge-nok ms-2"><i class="fas fa-times me-1"></i>NOK</span>
+                {% endif %}
+            </h4>
+        </div>
+        <div class="card-body">
+            <div class="bl-info-row">
+                <div class="bl-info-item">
+                    <div class="bl-info-label">ID</div>
+                    <div class="bl-info-value">{{ blencour.id }}</div>
+                </div>
+                <div class="bl-info-item">
+                    <div class="bl-info-label">Numéro de BL</div>
+                    <div class="bl-info-value">{{ blencour.numBl }}</div>
+                </div>
+            </div>
+            <div class="bl-info-row">
+                <div class="bl-info-item">
+                    <div class="bl-info-label">Statut</div>
+                    <div class="bl-info-value">{{ blencour.statut }}</div>
+                </div>
+                <div class="bl-info-item">
+                    <div class="bl-info-label">Date d'ajout</div>
+                    <div class="bl-info-value">
+                        {% if blencour.adddate %}
+                            {{ blencour.adddate|date('d/m/Y H:i:s') }}
+                        {% else %}
+                            <span class="text-muted">Non disponible</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="bl-info-row">
+                <div class="bl-info-item">
+                    <div class="bl-info-label">Picking OK</div>
+                    <div class="bl-info-value">
+                        {% if blencour.Pickingok %}
+                            <i class="fas fa-check-circle text-success"></i> Oui
+                        {% else %}
+                            <i class="fas fa-times-circle text-danger"></i> Non
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="bl-info-item">
+                    <div class="bl-info-label">Picking NOK</div>
+                    <div class="bl-info-value">
+                        {% if blencour.Pickingnok %}
+                            <i class="fas fa-check-circle text-success"></i> Oui
+                        {% else %}
+                            <i class="fas fa-times-circle text-danger"></i> Non
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="{{ path('app_blencours_edit', {'id': blencour.id}) }}" class="btn btn-edit">
+                    <i class="fas fa-edit me-1"></i>Modifier
+                </a>
+                
+                {% if blencour.statut != 'Traité' %}
+                    <form method="post" action="{{ path('app_blencours_complete', {'id': blencour.id}) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir marquer ce BL comme traité ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('complete' ~ blencour.id) }}">
+                        <button class="btn btn-complete">
+                            <i class="fas fa-check me-1"></i>Marquer comme traité
+                        </button>
+                    </form>
+                {% endif %}
+                
+                <form method="post" action="{{ path('app_blencours_delete', {'id': blencour.id}) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce BL ?');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ blencour.id) }}">
+                    <button class="btn btn-delete">
+                        <i class="fas fa-trash me-1"></i>Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Confirmation avant suppression
+        const deleteForm = document.querySelector('form[action*="delete"]');
+        if (deleteForm) {
+            deleteForm.addEventListener('submit', function(event) {
+                if (!confirm('Êtes-vous sûr de vouloir supprimer ce BL ?')) {
+                    event.preventDefault();
+                }
+            });
+        }
+        
+        // Confirmation avant marquage comme traité
+        const completeForm = document.querySelector('form[action*="complete"]');
+        if (completeForm) {
+            completeForm.addEventListener('submit', function(event) {
+                if (!confirm('Êtes-vous sûr de vouloir marquer ce BL comme traité ?')) {
+                    event.preventDefault();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,217 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Produit #{{ produit.id }} — {{ produit.ref }}{% endblock %}
+
+{% block body %}
+<div class="container py-4">
+  <h1 class="mb-3">Produit #{{ produit.id }}</h1>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="text-muted">Référence</div>
+          <div class="fs-5"><code>{{ produit.ref }}</code></div>
+        </div>
+        <div class="col-md-5">
+          <div class="text-muted">Désignation</div>
+          <div class="fs-5">{{ produit.des }}</div>
+        </div>
+        <div class="col-md-2">
+          <div class="text-muted">UV en stock</div>
+          <div class="fs-6">{{ produit.uvEnStock }}</div>
+        </div>
+        <div class="col-md-2">
+          <div class="text-muted">Nb ruc/pal</div>
+          <div class="fs-6">{{ produit.nbrucPal }}</div>
+        </div>
+        <div class="col-md-2">
+          <div class="text-muted">Poids</div>
+          <div class="fs-6">{{ produit.pinkg }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="h4 mb-3">
+    Lignes de préparation liées (CodeProduit = <code>{{ produit.ref }}</code>)
+  </h2>
+
+  {# Formulaire de filtres (GET) #}
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" action="{{ path('app_liste_produits_show', {id: produit.id}) }}">
+        <input type="hidden" name="spage" value="1"> {# revenir page 1 sur filtre #}
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label mb-1">Date Maj (du)</label>
+            <input type="date" name="f_maj_from" class="form-control" value="{{ f.maj_from_raw }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Date Maj (au)</label>
+            <input type="date" name="f_maj_to" class="form-control" value="{{ f.maj_to_raw }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Date liv (du)</label>
+            <input type="date" name="f_liv_from" class="form-control" value="{{ f.liv_from_raw }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Date liv (au)</label>
+            <input type="date" name="f_liv_to" class="form-control" value="{{ f.liv_to_raw }}">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label mb-1">No BL</label>
+            <input type="text" name="f_noBl" class="form-control" value="{{ f.noBl }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">No Cmd</label>
+            <input type="text" name="f_noCmd" class="form-control" value="{{ f.noCmd }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Client</label>
+            <input type="text" name="f_client" class="form-control" value="{{ f.client }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Code Client</label>
+            <input type="text" name="f_codeClient" class="form-control" value="{{ f.codeClient }}">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label mb-1">Zone</label>
+            <input type="text" name="f_zone" class="form-control" value="{{ f.zone }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Adresse</label>
+            <input type="text" name="f_adresse" class="form-control" value="{{ f.adresse }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Flasher</label>
+            <input type="text" name="f_flasher" class="form-control" value="{{ f.flasher }}" placeholder="Ok, KO, (vide)…">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">Préparateur</label>
+            <input type="text" name="f_preparateur" class="form-control" value="{{ f.preparateur }}">
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label mb-1">Transporteur</label>
+            <input type="text" name="f_transporteur" class="form-control" value="{{ f.transporteur }}">
+          </div>
+
+          <div class="col-md-2 ms-auto">
+            <label class="form-label mb-1">Taille page</label>
+            <select name="slimit" class="form-select" onchange="this.form.submit()">
+              {% for n in [10,20,50,100,200] %}
+                <option value="{{ n }}" {{ slimit == n ? 'selected' }}>{{ n }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-3 d-flex gap-2">
+          <button class="btn btn-primary" type="submit">Filtrer</button>
+          <a class="btn btn-outline-secondary" href="{{ path('app_liste_produits_show', {id: produit.id}) }}">Réinitialiser</a>
+        </div>
+      </form>
+
+      <div class="mt-2 text-muted small">
+        Total : {{ stotal }} — page {{ spage }}/{{ spages ?: 1 }}
+      </div>
+    </div>
+  </div>
+
+  {# Tableau des suivis #}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Maj</th>
+          <th>Date liv.</th>
+          <th>No BL</th>
+          <th>No Cmd</th>
+          <th>Client</th>
+          <th>Code Client</th>
+          <th>Zone</th>
+          <th>Adresse</th>
+          <th>Flasher</th>
+          <th>Préparateur</th>
+          <th>Transporteur</th>
+          <th>Pal</th>
+          <th>Colis</th>
+          <th>Articles</th>
+          <th>Regr.</th>
+          <th>Statut Cde</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in suivis %}
+          <tr>
+            <td>{{ s.id }}</td>
+            <td>{% if s.updatedAt is not null %}{{ s.updatedAt|date('d/m/Y H:i') }}{% endif %}</td>
+            <td>{% if s.dateLiv is not null %}{{ s.dateLiv|date('d/m/Y') }}{% endif %}</td>
+            <td>{{ s.noBl }}</td>
+            <td>{{ s.noCmd }}</td>
+            <td>{{ s.client }}</td>
+            <td>{{ s.codeClient }}</td>
+            <td>{{ s.zone }}</td>
+            <td>{{ s.adresse }}</td>
+            <td>
+              {% set fl = s.flasher ?? '' %}
+              {% if fl == 'Ok' %}
+                <span class="badge text-bg-success">Ok</span>
+              {% elseif fl == 'KO' %}
+                <span class="badge text-bg-danger">KO</span>
+              {% elseif fl is empty %}
+                <span class="badge text-bg-secondary">En cours</span>
+              {% else %}
+                <span class="badge text-bg-warning">{{ fl }}</span>
+              {% endif %}
+            </td>
+            <td>{{ s.preparateur }}</td>
+            <td>{{ s.transporteur }}</td>
+            <td>{{ s.nbPal }}</td>
+            <td>{{ s.nbCol }}</td>
+            <td>{{ s.nbArt }}</td>
+            <td>{{ s.nbRegr }}</td>
+            <td>{{ s.statutCde }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="17" class="text-center text-muted">Aucune ligne trouvée avec ces filtres.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {# Pagination des suivis : on préserve tous les filtres via la query courante #}
+  {% if spages > 1 %}
+    {% set q = app.request.query.all %}
+    <nav aria-label="Pagination suivis" class="mt-2">
+      <ul class="pagination">
+        <li class="page-item {{ spage == 1 ? 'disabled' }}">
+          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': 1})|url_encode) }}">«</a>
+        </li>
+        <li class="page-item {{ spage == 1 ? 'disabled' }}">
+          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': spage - 1})|url_encode) }}">Préc.</a>
+        </li>
+        {% for p in range(max(1, spage-2), min(spages, spage+2)) %}
+          <li class="page-item {{ p == spage ? 'active' }}">
+            <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': p})|url_encode) }}">{{ p }}</a>
+          </li>
+        {% endfor %}
+        <li class="page-item {{ spage == spages ? 'disabled' }}">
+          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': spage + 1})|url_encode) }}">Suiv.</a>
+        </li>
+        <li class="page-item {{ spage == spages ? 'disabled' }}">
+          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': spages})|url_encode) }}">»</a>
+        </li>
+      </ul>
+    </nav>
+  {% endif %}
+
+  <div class="mt-4">
+    <a class="btn btn-outline-secondary" href="{{ path('app_liste_produits_index') }}">↩ Retour à la liste</a>
+  </div>
+</div>
+{% endblock %}

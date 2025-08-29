@@ -1,0 +1,692 @@
+{% extends 'inventairecompt/base.html.twig' %}
+
+{% block title %}Sessions de Comptage{% endblock %}
+
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item active">Sessions de Comptage</li>
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .session-header {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            border-radius: 1rem;
+        }
+        
+        .session-card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            border-left: 4px solid #6c5ce7;
+        }
+        
+        .session-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+        
+        .session-meta {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .progress-ring {
+            width: 60px;
+            height: 60px;
+            position: relative;
+        }
+        
+        .progress-ring svg {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-ring-circle {
+            fill: transparent;
+            stroke: #e9ecef;
+            stroke-width: 4;
+        }
+        
+        .progress-ring-progress {
+            fill: transparent;
+            stroke: #28a745;
+            stroke-width: 4;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.5s ease;
+        }
+        
+        .session-status {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-completed {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #99d1ff;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .quick-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .quick-stat {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            border: 1px solid #e9ecef;
+        }
+        
+        .quick-stat h4 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .quick-stat small {
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e9ecef;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -0.6rem;
+            top: 0.2rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6c5ce7;
+            border: 2px solid white;
+            box-shadow: 0 0 0 2px #6c5ce7;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #6c757d;
+        }
+        
+        .floating-action {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 20px rgba(108, 92, 231, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .floating-action:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(108, 92, 231, 0.6);
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="session-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-3">
+                    <i class="fas fa-clipboard-list me-3"></i>
+                    Sessions de Comptage
+                </h2>
+                <p class="lead mb-0">
+                    Gérez et suivez vos sessions d'inventaire en cours et terminées
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="d-flex flex-column gap-2">
+                    <div class="session-status status-active">
+                        <i class="fas fa-circle me-2"></i>
+                        Session Active: {{ session_id|slice(0, 8) }}...
+                    </div>
+                    <small class="text-white-50">
+                        <i class="fas fa-clock me-1"></i>
+                        Démarrée: {{ "now"|date('d/m/Y H:i') }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiques de session actuelle -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="session-card">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4 class="mb-3">
+                            <i class="fas fa-play-circle text-success me-2"></i>
+                            Session Actuelle
+                        </h4>
+                        
+                        <div class="session-meta">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-2">
+                                        <strong>ID Session:</strong> 
+                                        <code>{{ session_id|slice(0, 16) }}...</code>
+                                    </p>
+                                    <p class="mb-2">
+                                        <strong>Démarrée:</strong> 
+                                        {{ "now"|date('d/m/Y à H:i') }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Durée:</strong> 
+                                        <span id="sessionDuration">--:--:--</span>
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-2">
+                                        <strong>Produits comptés:</strong> 
+                                        {{ resume_session|length }}
+                                    </p>
+                                    <p class="mb-2">
+                                        <strong>Total emplacements:</strong> 
+                                        {% set total_emplacements = 0 %}
+                                        {% for item in resume_session %}
+                                            {% set total_emplacements = total_emplacements + item.nb_emplacements %}
+                                        {% endfor %}
+                                        {{ total_emplacements }}
+                                    </p>
+                                    <p class="mb-0">
+                                        <strong>Validés:</strong> 
+                                        {% set total_valides = 0 %}
+                                        {% for item in resume_session %}
+                                            {% set total_valides = total_valides + item.nb_valides %}
+                                        {% endfor %}
+                                        {{ total_valides }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="quick-stats">
+                            <div class="quick-stat">
+                                <h4 class="text-primary">{{ resume_session|length }}</h4>
+                                <small>Produits</small>
+                            </div>
+                            <div class="quick-stat">
+                                <h4 class="text-success">{{ total_valides }}</h4>
+                                <small>Validés</small>
+                            </div>
+                            <div class="quick-stat">
+                                <h4 class="text-warning">
+                                    {% set total_ecarts = 0 %}
+                                    {% for item in resume_session %}
+                                        {% if item.nb_avec_ecarts > 0 %}
+                                            {% set total_ecarts = total_ecarts + item.nb_avec_ecarts %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    {{ total_ecarts }}
+                                </h4>
+                                <small>Avec écarts</small>
+                            </div>
+                            <div class="quick-stat">
+                                <h4 class="text-info">
+                                    {% if total_emplacements > 0 %}
+                                        {{ ((total_valides / total_emplacements) * 100)|round(1) }}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </h4>
+                                <small>Progression</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <div class="progress-ring mx-auto mb-3">
+                            <svg width="60" height="60">
+                                <circle class="progress-ring-circle" cx="30" cy="30" r="26"></circle>
+                                <circle class="progress-ring-progress" cx="30" cy="30" r="26" 
+                                        style="stroke-dasharray: {{ total_emplacements > 0 ? ((total_valides / total_emplacements) * 163.36)|round(2) : 0 }} 163.36"></circle>
+                            </svg>
+                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-weight: bold;">
+                                {{ total_emplacements > 0 ? ((total_valides / total_emplacements) * 100)|round(0) : 0 }}%
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons justify-content-center">
+                            <button class="btn btn-primary btn-sm" onclick="continueSession()">
+                                <i class="fas fa-play me-1"></i>Continuer
+                            </button>
+                            <button class="btn btn-success btn-sm" onclick="exportSession()">
+                                <i class="fas fa-download me-1"></i>Exporter
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="pauseSession()">
+                                <i class="fas fa-pause me-1"></i>Pause
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Détail des produits de la session -->
+    {% if resume_session|length > 0 %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <h5 class="mb-0">
+                                <i class="fas fa-list me-2"></i>
+                                Produits en Cours
+                            </h5>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary" onclick="filterProducts('all')">Tous</button>
+                                <button class="btn btn-outline-success" onclick="filterProducts('completed')">Terminés</button>
+                                <button class="btn btn-outline-warning" onclick="filterProducts('pending')">En cours</button>
+                                <button class="btn btn-outline-danger" onclick="filterProducts('errors')">Avec écarts</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Code Produit</th>
+                                    <th>Désignation</th>
+                                    <th class="text-center">Emplacements</th>
+                                    <th class="text-center">Validés</th>
+                                    <th class="text-center">Écarts</th>
+                                    <th class="text-center">Progression</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in resume_session %}
+                                <tr class="product-row" 
+                                    data-filter-type="{% if item.nb_valides == item.nb_emplacements %}completed{% elseif item.nb_avec_ecarts > 0 %}errors{% else %}pending{% endif %}">
+                                    <td>
+                                        <strong>{{ item.codeprod }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ item.dsignprod|slice(0, 40) }}{% if item.dsignprod|length > 40 %}...{% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ item.nb_emplacements }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if item.nb_valides == item.nb_emplacements %}bg-success{% else %}bg-secondary{% endif %}">
+                                            {{ item.nb_valides }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.nb_avec_ecarts > 0 %}
+                                            <span class="badge bg-warning">{{ item.nb_avec_ecarts }}</span>
+                                        {% else %}
+                                            <span class="badge bg-success">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% set progression = item.nb_emplacements > 0 ? (item.nb_valides / item.nb_emplacements * 100) : 0 %}
+                                        <div class="progress" style="height: 8px; width: 60px; margin: 0 auto;">
+                                            <div class="progress-bar {% if progression == 100 %}bg-success{% elseif progression >= 50 %}bg-info{% else %}bg-warning{% endif %}" 
+                                                 style="width: {{ progression }}%"></div>
+                                        </div>
+                                        <small>{{ progression|round(0) }}%</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ path('app_inventairecompt_comptage', {codeprod: item.codeprod}) }}" 
+                                               class="btn btn-outline-primary btn-sm" 
+                                               title="Continuer comptage">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% if item.nb_avec_ecarts > 0 %}
+                                            <a href="{{ path('app_inventairecompt_rapport_ecarts', {codeprod: item.codeprod}) }}" 
+                                               class="btn btn-outline-warning btn-sm" 
+                                               title="Voir écarts">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                            </a>
+                                            {% endif %}
+                                            <a href="{{ path('app_inventairecompt_export_comptages', {codeprod: item.codeprod}) }}" 
+                                               class="btn btn-outline-success btn-sm" 
+                                               title="Exporter">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- État vide -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="empty-state">
+                <i class="fas fa-clipboard-list fa-4x mb-3"></i>
+                <h4>Aucun comptage en cours</h4>
+                <p class="text-muted mb-4">
+                    Commencez par rechercher un produit et accéder au mode comptage
+                </p>
+                <a href="{{ path('app_inventairecompt_search') }}" class="btn btn-primary">
+                    <i class="fas fa-search me-2"></i>Commencer un Comptage
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Historique des sessions récentes -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Historique Récent
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">Session {{ session_id|slice(0, 8) }}... (Actuelle)</h6>
+                                    <p class="text-muted mb-1">Démarrée il y a 2 heures</p>
+                                    <small class="text-success">
+                                        <i class="fas fa-circle me-1"></i>En cours
+                                    </small>
+                                </div>
+                                <span class="badge bg-primary">{{ resume_session|length }} produits</span>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">Session 8f3a2b...</h6>
+                                    <p class="text-muted mb-1">Terminée hier à 16:30</p>
+                                    <small class="text-info">
+                                        <i class="fas fa-check-circle me-1"></i>Terminée
+                                    </small>
+                                </div>
+                                <span class="badge bg-success">12 produits</span>
+                            </div>
+                        </div>
+                        
+                        <div class="timeline-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">Session 7e9b5c...</h6>
+                                    <p class="text-muted mb-1">Terminée avant-hier à 14:15</p>
+                                    <small class="text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Écarts détectés
+                                    </small>
+                                </div>
+                                <span class="badge bg-warning">8 produits</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <button class="btn btn-outline-primary btn-sm" onclick="loadMoreHistory()">
+                            <i class="fas fa-chevron-down me-1"></i>Voir plus d'historique
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bouton d'action flottant -->
+<button class="floating-action" onclick="quickActions()" title="Actions rapides">
+    <i class="fas fa-plus"></i>
+</button>
+
+<!-- Modal d'actions rapides -->
+<div class="modal fade" id="quickActionsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-bolt me-2"></i>Actions Rapides
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ path('app_inventairecompt_search') }}" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Nouveau Comptage
+                    </a>
+                    <button class="btn btn-success" onclick="exportAllSessions()">
+                        <i class="fas fa-download me-2"></i>Exporter Session Complète
+                    </button>
+                    <button class="btn btn-warning" onclick="generateGlobalReport()">
+                        <i class="fas fa-chart-bar me-2"></i>Rapport Global
+                    </button>
+                    <button class="btn btn-info" onclick="archiveSession()">
+                        <i class="fas fa-archive me-2"></i>Archiver Session
+                    </button>
+                    <button class="btn btn-danger" onclick="clearSession()">
+                        <i class="fas fa-trash me-2"></i>Vider Session
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mise à jour du temps de session
+    const sessionStart = new Date();
+    
+    function updateSessionDuration() {
+        const now = new Date();
+        const duration = new Date(now - sessionStart);
+        const hours = String(duration.getUTCHours()).padStart(2, '0');
+        const minutes = String(duration.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(duration.getUTCSeconds()).padStart(2, '0');
+        
+        const durationElement = document.getElementById('sessionDuration');
+        if (durationElement) {
+            durationElement.textContent = `${hours}:${minutes}:${seconds}`;
+        }
+    }
+    
+    setInterval(updateSessionDuration, 1000);
+    updateSessionDuration();
+    
+    // Animation des cartes
+    const cards = document.querySelectorAll('.session-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 100);
+        }, index * 150);
+    });
+});
+
+// Filtrage des produits
+function filterProducts(type) {
+    const rows = document.querySelectorAll('.product-row');
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    
+    // Reset active button
+    buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.toLowerCase().includes(type) || type === 'all') {
+            btn.classList.add('active');
+        }
+    });
+    
+    rows.forEach(row => {
+        if (type === 'all') {
+            row.style.display = '';
+        } else {
+            const filterType = row.dataset.filterType;
+            row.style.display = filterType === type ? '' : 'none';
+        }
+    });
+}
+
+// Actions de session
+function continueSession() {
+    window.location.href = '{{ path("app_inventairecompt_search") }}';
+}
+
+function exportSession() {
+    // Logique d'export global
+    showNotification('Export de la session en cours...', 'info');
+    // Implémenter l'export
+}
+
+function pauseSession() {
+    if (confirm('Voulez-vous vraiment mettre en pause cette session ?')) {
+        showNotification('Session mise en pause', 'warning');
+        // Logique de pause
+    }
+}
+
+// Actions rapides
+function quickActions() {
+    const modal = new bootstrap.Modal(document.getElementById('quickActionsModal'));
+    modal.show();
+}
+
+function exportAllSessions() {
+    showNotification('Export global en cours...', 'info');
+    // Implémenter l'export global
+}
+
+function generateGlobalReport() {
+    showNotification('Génération du rapport global...', 'info');
+    // Rediriger vers le rapport global
+    window.location.href = '{{ path("app_inventairecompt_statistiques") }}';
+}
+
+function archiveSession() {
+    if (confirm('Voulez-vous archiver la session actuelle ? Cette action est irréversible.')) {
+        showNotification('Session archivée avec succès', 'success');
+        // Logique d'archivage
+    }
+}
+
+function clearSession() {
+    if (confirm('ATTENTION: Cette action supprimera tous les comptages de la session actuelle. Êtes-vous sûr ?')) {
+        if (confirm('Dernière confirmation: Supprimer définitivement tous les comptages ?')) {
+            showNotification('Session vidée', 'warning');
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        }
+    }
+}
+
+function loadMoreHistory() {
+    showNotification('Chargement de l\'historique...', 'info');
+    // Logique de chargement plus d'historique
+}
+
+// Raccourcis clavier
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        continueSession();
+    }
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        exportSession();
+    }
+    if (e.key === ' ' && e.target.tagName !== 'INPUT') {
+        e.preventDefault();
+        quickActions();
+    }
+});
+
+// Sauvegarde automatique périodique (optionnel)
+setInterval(() => {
+    // Logique de sauvegarde automatique
+    console.log('Sauvegarde automatique...');
+}, 300000); // Toutes les 5 minutes
+</script>
+{% endblock %}

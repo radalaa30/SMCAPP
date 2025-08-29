@@ -1,0 +1,57 @@
+{# templates/bl_en_cours/list.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Liste des BL en cours{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Liste des BL en cours</h1>
+    
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">{{ message }}</div>
+    {% endfor %}
+    
+    <div class="mb-3">
+        <a href="{{ path('bl_en_cours_add') }}" class="btn btn-primary">Ajouter un BL</a>
+        <a href="{{ path('sync_bl_en_cours') }}" class="btn btn-info">Synchroniser les BL</a>
+        <a href="{{ path('bl_en_cours_clear_all') }}" class="btn btn-danger" onclick="return confirm('Êtes-vous sûr de vouloir supprimer tous les BL ?')">Supprimer tous les BL</a>
+    </div>
+    
+    <table class="table">
+        <thead>
+            <tr>
+                <th>N° BL</th>
+                <th>N° Commande</th>
+                <th>Client</th>
+                <th>Statut</th>
+                <th>Date livraison</th>
+                <th>Date création</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bl in bls %}
+                <tr>
+                    <td>{{ bl.noBl }}</td>
+                    <td>{{ bl.noCmd }}</td>
+                    <td>{{ bl.client }}</td>
+                    <td>{{ bl.statut }}</td>
+                    <td>{{ bl.dateLiv|date('d/m/Y') }}</td>
+                    <td>{{ bl.createdAt|date('d/m/Y H:i') }}</td>
+                    <td>
+                        <a href="{{ path('bl_en_cours_delete', {'id': bl.id}) }}" 
+                           class="btn btn-sm btn-danger" 
+                           onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce BL ?')">
+                            Supprimer
+                        </a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">Aucun BL en cours</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

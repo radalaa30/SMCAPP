@@ -1,0 +1,175 @@
+{% block stylesheets %}
+<style>
+    /* Styles pour améliorer l'apparence des formulaires */
+    .form-container {
+        padding: 15px 0;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: #495057;
+    }
+    
+    .form-control {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 0.75rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #495057;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-control:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    select.form-control {
+        height: calc(2.25rem + 2px);
+    }
+    
+    textarea.form-control {
+        min-height: 100px;
+    }
+    
+    .form-check {
+        position: relative;
+        padding-left: 1.25rem;
+    }
+    
+    .form-check-input {
+        position: absolute;
+        margin-top: 0.3rem;
+        margin-left: -1.25rem;
+    }
+    
+    .form-check-label {
+        margin-bottom: 0;
+    }
+    
+    /* Style pour le bouton de formulaire */
+    .btn-form {
+        display: inline-block;
+        font-weight: 500;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+        user-select: none;
+        border: 1px solid transparent;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border-radius: 4px;
+        transition: all 0.15s ease-in-out;
+        margin-top: 10px;
+    }
+    
+    .btn-primary {
+        color: #fff;
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    
+    .btn-primary:hover {
+        color: #fff;
+        background-color: #0069d9;
+        border-color: #0062cc;
+    }
+    
+    .btn-success {
+        color: #fff;
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+    
+    .btn-success:hover {
+        color: #fff;
+        background-color: #218838;
+        border-color: #1e7e34;
+    }
+    
+    .btn-warning {
+        color: #212529;
+        background-color: #ffc107;
+        border-color: #ffc107;
+    }
+    
+    .btn-warning:hover {
+        color: #212529;
+        background-color: #e0a800;
+        border-color: #d39e00;
+    }
+    
+    /* Style pour les erreurs de formulaire */
+    .form-error {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 5px;
+    }
+    
+    .is-invalid {
+        border-color: #dc3545 !important;
+    }
+    
+    /* Grille simple pour disposition en colonnes */
+    .form-row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-right: -10px;
+        margin-left: -10px;
+    }
+    
+    .form-col {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding-right: 10px;
+        padding-left: 10px;
+    }
+    
+    @media (min-width: 768px) {
+        .form-col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+        }
+        
+        .form-col-md-4 {
+            flex: 0 0 33.333333%;
+            max-width: 33.333333%;
+        }
+    }
+</style>
+{% endblock %}
+
+{{ form_start(form, {'attr': {'class': 'form-container'}}) }}
+    {% for field in form %}
+        {% if field.vars.name != '_token' %}
+            <div class="form-group">
+                {{ form_label(field) }}
+                {{ form_widget(field, {'attr': {'class': 'form-control'}}) }}
+                {{ form_errors(field, {'attr': {'class': 'form-error'}}) }}
+            </div>
+        {% endif %}
+    {% endfor %}
+    
+    <button class="btn-form 
+        {% if button_label == 'Mettre à jour' %}btn-warning
+        {% elseif button_label == 'Créer' %}btn-success
+        {% else %}btn-primary{% endif %}">
+        <i class="fas {% if button_label == 'Mettre à jour' %}fa-save
+            {% elseif button_label == 'Créer' %}fa-plus-circle
+            {% else %}fa-check-circle{% endif %} me-2"></i>
+        {{ button_label|default('Enregistrer') }}
+    </button>
+{{ form_end(form) }}

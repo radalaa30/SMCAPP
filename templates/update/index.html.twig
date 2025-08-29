@@ -1,0 +1,362 @@
+{# emplacement/index.html.twig #}
+
+{% extends 'base.html.twig' %}
+
+{% block title %}Visualisation des emplacements{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .container-emplacements {
+            margin-top: 20px;
+        }
+        
+        .form-selection {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .cellule-vue {
+            border: 2px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 30px;
+            background-color: #fff;
+        }
+        
+        .cellule-header {
+            background-color: #343a40;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .allee-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        
+        .allee-header {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .allee-content {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .cote {
+            flex: 1;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 0 5px;
+        }
+        
+        .cote-header {
+            background-color: #e9ecef;
+            padding: 5px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .positions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .position {
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            padding: 5px;
+        }
+        
+        .position-header {
+            font-weight: bold;
+            background-color: #f8f9fa;
+            padding: 3px;
+            border-radius: 3px;
+            margin-bottom: 5px;
+        }
+        
+        .niveaux {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .niveau {
+            width: 70px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #adb5bd;
+            border-radius: 3px;
+            position: relative;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .niveau-code {
+            font-size: 0.8rem;
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            opacity: 0.7;
+        }
+        
+        .vide {
+            background-color: white;
+        }
+        
+        .plein {
+            background-color: #28a745; /* Vert */
+            color: white;
+        }
+        
+        .rouge {
+            background-color: #dc3545; /* Rouge */
+            color: white;
+        }
+        
+        .info-box {
+            display: none;
+            position: absolute;
+            background-color: #343a40;
+            color: white;
+            border: 1px solid #adb5bd;
+            border-radius: 5px;
+            padding: 10px;
+            z-index: 100;
+            width: 250px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.26);
+            left: 75px;
+            top: 0;
+        }
+        
+        .niveau:hover .info-box {
+            display: block;
+            transform: translateX(10px);
+        }
+        
+        .legende {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 20px;
+        }
+
+        .info-box strong {
+            color: #ffc107; /* Jaune pour les titres */
+            font-weight: bold;
+        }
+        
+        .info-box p {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        
+        .legende-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .legende-couleur {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #adb5bd;
+            border-radius: 3px;
+        }
+    </style>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Récupère les éléments du formulaire
+            const celluleSelect = document.getElementById('cellule');
+            const alleeSelect = document.getElementById('allee');
+            
+            // Met à jour les options d'allée en fonction de la cellule sélectionnée
+            celluleSelect.addEventListener('change', function() {
+                // Soumet le formulaire pour la mise à jour
+                document.getElementById('form-selection').submit();
+            });
+            
+            // Soumet le formulaire lorsque l'allée est changée
+            alleeSelect.addEventListener('change', function() {
+                document.getElementById('form-selection').submit();
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <h1 class="my-4">Visualisation des emplacements</h1>
+        
+        <div class="form-selection">
+            <form id="form-selection" method="get">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="cellule">Cellule:</label>
+                            <select id="cellule" name="cellule" class="form-control">
+                                {% for code, data in cellules %}
+                                    <option value="{{ code }}" {% if code == celluleSelectionnee %}selected{% endif %}>
+                                        Cellule {{ code }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="allee">Allée:</label>
+                            <select id="allee" name="allee" class="form-control">
+                                {% for alleeCode in cellules[celluleSelectionnee].allees %}
+                                    <option value="{{ alleeCode }}" {% if alleeCode == alleeSelectionnee %}selected{% endif %}>
+                                        Allée {{ alleeCode }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="cellule-vue">
+            <div class="cellule-header">
+                Cellule {{ celluleSelectionnee }} - Allée {{ alleeSelectionnee }}
+            </div>
+            
+            <div class="allee-container">
+                <div class="allee-content">
+                    {# Côté gauche (impair) #}
+                    <div class="cote">
+                        <div class="cote-header">Côté Impair</div>
+                        <div class="positions">
+                            {% for position, niveaux in emplacements.gauche %}
+                                <div class="position">
+                                    <div class="position-header">Position {{ position }}</div>
+                                    <div class="niveaux">
+                                        {% for niveau in 0..4 %}
+                                            {% if niveaux[niveau] is defined %}
+                                                <div class="niveau {% if niveaux[niveau].rouge %}rouge{% elseif niveaux[niveau].plein %}plein{% else %}vide{% endif %}">
+                                                    {% if niveaux[niveau].plein %}
+                                                        {{ niveaux[niveau].ucdispo }}
+                                                    {% else %}
+                                                        {{ niveau }}
+                                                    {% endif %}
+                                                    <span class="niveau-code">{{ position }}-{{ niveau }}</span>
+                                                    
+                                                    {% if niveaux[niveau].plein %}
+                                                        <div class="info-box">
+                                                            <p><strong>Emplacement:</strong> {{ niveaux[niveau].code }}</p>
+                                                            <p><strong>Palette:</strong> {{ niveaux[niveau].nopal }}</p>
+                                                            <p><strong>Produit:</strong> {{ niveaux[niveau].codeprod }}</p>
+                                                            <p><strong>Désignation:</strong> {{ niveaux[niveau].designation }}</p>
+                                                            <p><strong>Nb colis:</strong> {{ niveaux[niveau].ucdispo }}</p>
+                                                            <p><strong>Nb unités:</strong> {{ niveaux[niveau].urdispo }}</p>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div class="niveau vide">
+                                                    {{ niveau }}
+                                                    <span class="niveau-code">{{ position }}-{{ niveau }}</span>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <em>Aucun emplacement impair trouvé pour cette allée</em>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    {# Côté droit (pair) #}
+                    <div class="cote">
+                        <div class="cote-header">Côté Pair</div>
+                        <div class="positions">
+                            {% for position, niveaux in emplacements.droite %}
+                                <div class="position">
+                                    <div class="position-header">Position {{ position }}</div>
+                                    <div class="niveaux">
+                                        {% for niveau in 0..4 %}
+                                            {% if niveaux[niveau] is defined %}
+                                                <div class="niveau {% if niveaux[niveau].rouge %}rouge{% elseif niveaux[niveau].plein %}plein{% else %}vide{% endif %}">
+                                                    {{ niveau }}
+                                                    <span class="niveau-code">{{ position }}-{{ niveau }}</span>
+                                                    
+                                                    {% if niveaux[niveau].plein %}
+                                                        <div class="info-box">
+                                                            <p><strong>Emplacement:</strong> {{ niveaux[niveau].code }}</p>
+                                                            <p><strong>Palette:</strong> {{ niveaux[niveau].nopal }}</p>
+                                                            <p><strong>Produit:</strong> {{ niveaux[niveau].codeprod }}</p>
+                                                            <p><strong>Désignation:</strong> {{ niveaux[niveau].designation|length > 20 ? niveaux[niveau].designation|slice(0, 20) ~ '...' : niveaux[niveau].designation }}</p>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div class="niveau vide">
+                                                    {{ niveau }}
+                                                    <span class="niveau-code">{{ position }}-{{ niveau }}</span>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <em>Aucun emplacement pair trouvé pour cette allée</em>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="legende">
+            <h5>Légende</h5>
+            <div class="legende-item">
+                <div class="legende-couleur vide"></div>
+                <span>Emplacement vide</span>
+            </div>
+            <div class="legende-item">
+                <div class="legende-couleur plein"></div>
+                <span>Emplacement occupé</span>
+            </div>
+            <div class="legende-item">
+                <div class="legende-couleur rouge"></div>
+                <span>Palette bloquée</span>
+            </div>
+        </div>
+    </div>
+{% endblock %}

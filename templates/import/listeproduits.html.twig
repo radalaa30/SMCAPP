@@ -1,0 +1,35 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Import Excel{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Importer un fichier Excel Produits</h1>
+    
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success">
+            {{ message }}
+        </div>
+    {% endfor %}
+    
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger">
+            {{ message }}
+        </div>
+    {% endfor %}
+    
+    <div class="card">
+        <div class="card-body">
+            <form action="{{ path('app_import_produits_process') }}" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="excel_file" class="form-label">Fichier Excel</label>
+                    <input type="file" name="excel_file" id="excel_file" class="form-control" required>
+                    <small class="form-text text-muted">Formats acceptés: .xls, .xlsx</small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Importer</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

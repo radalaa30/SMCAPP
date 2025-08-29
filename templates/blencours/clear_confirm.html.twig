@@ -1,0 +1,95 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Confirmation de suppression - BL en cours{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Attention - Suppression de toutes les données
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Cette action est irréversible !</strong>
+                        <p class="mb-0">Vous êtes sur le point de supprimer <strong>{{ totalCount }}</strong> enregistrement(s) de BL.</p>
+                    </div>
+
+                    <h5>Options de suppression :</h5>
+                    
+                    <!-- Suppression complète -->
+                    <div class="mb-4">
+                        <h6 class="text-danger">1. Supprimer TOUS les BL</h6>
+                        <p>Supprime tous les {{ totalCount }} enregistrements de la base de données.</p>
+                        <form method="POST" action="{{ path('app_blencours_clear_all') }}" 
+                              onsubmit="return confirm('Êtes-vous absolument certain de vouloir supprimer TOUS les BL ? Cette action est irréversible.');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('clear_all_blencours') }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt"></i>
+                                Supprimer TOUT
+                            </button>
+                        </form>
+                    </div>
+
+                    <hr>
+
+                    <!-- Suppression par statut -->
+                    <div class="mb-4">
+                        <h6 class="text-warning">2. Supprimer par statut</h6>
+                        <p>Supprime uniquement les BL ayant un statut spécifique.</p>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <form method="post" action="{{ path('app_blencours_clear_by_status') }}" 
+                                      onsubmit="return confirm('Supprimer tous les BL en attente ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('clear_by_status') }}">
+                                    <input type="hidden" name="status" value="En attente">
+                                    <button type="submit" class="btn btn-warning btn-sm w-100">
+                                        <i class="fas fa-clock"></i>
+                                        Supprimer "En attente"
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-4">
+                                <form method="post" action="{{ path('app_blencours_clear_by_status') }}" 
+                                      onsubmit="return confirm('Supprimer tous les BL en cours ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('clear_by_status') }}">
+                                    <input type="hidden" name="status" value="En cours">
+                                    <button type="submit" class="btn btn-info btn-sm w-100">
+                                        <i class="fas fa-play"></i>
+                                        Supprimer "En cours"
+                                    </button>
+                                </form>
+                            </div>
+                            <div class="col-md-4">
+                                <form method="post" action="{{ path('app_blencours_clear_by_status') }}" 
+                                      onsubmit="return confirm('Supprimer tous les BL traités ?');">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('clear_by_status') }}">
+                                    <input type="hidden" name="status" value="Traité">
+                                    <button type="submit" class="btn btn-success btn-sm w-100">
+                                        <i class="fas fa-check"></i>
+                                        Supprimer "Traités"
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="text-center">
+                        <a href="{{ path('app_blencours_index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i>
+                            Annuler et retourner à la liste
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

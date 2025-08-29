@@ -1,0 +1,20 @@
+{# templates/bl_en_cours/add.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Ajouter un BL{% endblock %}
+
+{% block body %}
+<div class="container">
+    <h1>Ajouter un BL en cours</h1>
+    
+    <form method="post">
+        <div class="mb-3">
+            <label for="no_bl" class="form-label">N° BL</label>
+            <input type="text" class="form-control" id="no_bl" name="no_bl" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Ajouter</button>
+        <a href="{{ path('bl_en_cours_list') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div>
+{% endblock %}

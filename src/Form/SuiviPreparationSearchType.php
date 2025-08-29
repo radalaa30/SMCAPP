@@ -54,13 +54,20 @@ class SuiviPreparationSearchType extends AbstractType
                 'label' => 'Numéro Commande',
                 'attr' => ['placeholder' => 'Rechercher par n° commande']
             ])
-            // Dans SuiviPreparationSearchType
             ->add('codeProduit', TextType::class, [
                 'required' => false,
                 'label' => 'Code Produit',
                 'attr' => [
                     'placeholder' => 'Rechercher par codes produit (séparés par des virgules)',
                     'data-help' => 'Vous pouvez entrer plusieurs codes séparés par des virgules'
+                ]
+            ])
+            ->add('adresse', TextType::class, [
+                'required' => false,
+                'label' => 'Adresse',
+                'attr' => [
+                    'placeholder' => 'Rechercher par adresse',
+                    'data-help' => 'Vous pouvez rechercher par adresse ou zone'
                 ]
             ]);
     }

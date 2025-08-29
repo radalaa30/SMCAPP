@@ -1,167 +1,768 @@
-{# templates/inventaire_dashboard/index.html.twig #}
+{# templates/dashboard/inventaire.html.twig #}
 {% extends 'base2.html.twig' %}
 
-{% block title %}Dashboard Inventaire{% endblock %}
+{% block title %}Dashboard Inventaire avec Stock Live{% endblock %}
 
 {% block stylesheets %}
     {{ parent() }}
     <style>
-        .stats-card {
-            background-color: #f8f9fa;
-            border-radius: 5px;
-            padding: 15px;
-            margin-bottom: 20px;
+        .stats-container { 
+            padding: 20px; 
+        }
+        
+        .stats-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }
-        .stats-card h3 {
-            margin-top: 0;
-            color: #495057;
+        
+        .stats-header {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        .stats-card .number {
-            font-size: 2em;
-            font-weight: bold;
-            color: #0d6efd;
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
         }
-        .table-responsive {
-            margin-top: 20px;
+
+        .input-group {
+            flex: 1;
+            min-width: 300px;
         }
-        .product-row:hover {
-            background-color: #f1f1f1;
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        button {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
             cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            white-space: nowrap;
         }
-        .status-low {
-            color: #dc3545;
-            font-weight: bold;
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
         }
-        .status-ok {
-            color: #198754;
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .results {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+
+        .result-card h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .stats-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border: 1px solid #e9ecef;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+
+        .stats-value {
+            font-size: 2rem;
             font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .stats-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .stock-live-card {
+            background: linear-gradient(135deg, #e8f8f5, #d5f4e6);
+            border-left: 4px solid #27ae60;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .stock-live-title {
+            font-size: 1.5rem;
+            color: #27ae60;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .stock-live-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #27ae60;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .stock-calculation {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 15px;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #28a745;
+        }
+
+        .loading {
+            background: #cce7ff;
+            color: #004085;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            text-align: center;
+        }
+
+        .info-highlight {
+            background: linear-gradient(135deg, #e8f4fd, #cce7ff);
+            border: 1px solid #3498db;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .stats-table th,
+        .stats-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .stats-table th {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            font-weight: 600;
+            color: #2c3e50;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .stats-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .stats-table tr:nth-child(even) { 
+            background-color: #f9f9f9; 
+        }
+
+        .clickable-address {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .clickable-address:hover {
+            background: linear-gradient(135deg, #2980b9, #1f618d);
+            transform: translateY(-1px);
+        }
+
+        .no-data {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        .positive {
+            color: #27ae60;
+        }
+
+        .negative {
+            color: #e74c3c;
+        }
+
+        .neutral {
+            color: #f39c12;
+        }
+
+        .detail-table {
+            background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
+            border: 2px solid #27ae60;
+        }
+
+        .detail-table th {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            margin: 30px 0;
+            border-radius: 1px;
+        }
+
+        .validation-card {
+            background: linear-gradient(135deg, #f8f4e6, #fff8e1);
+            border-left: 4px solid #f39c12;
+        }
+
+        .validation-card.global {
+            background: linear-gradient(135deg, #e8f5e8, #f0f8f0);
+            border-left: 4px solid #27ae60;
+        }
+
+        .stock-components {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stock-component {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px solid #e9ecef;
+        }
+
+        .stock-component.positive {
+            border-color: #27ae60;
+            background: linear-gradient(135deg, #e8f8f5, #f0f8f0);
+        }
+
+        .stock-component.negative {
+            border-color: #e74c3c;
+            background: linear-gradient(135deg, #fdf2f2, #f8e8e8);
+        }
+
+        .stock-component.neutral {
+            border-color: #3498db;
+            background: linear-gradient(135deg, #e8f4fd, #f0f8ff);
+        }
+
+        .table-responsive { 
+            max-height: 500px; 
+            overflow-y: auto; 
+        }
+
+        .update-box {
+            border: 2px solid #3498db;
+            background-color: #ebf5fb;
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block;
+            color: #2874a6;
+        }
+
+        .progress {
+            height: 20px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            margin: 5px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+
+        .progress-bar.warning { 
+            background-color: #FFA726; 
+        }
+        
+        .progress-bar.danger { 
+            background-color: #EF5350; 
+        }
+
+        @media (max-width: 768px) {
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .input-group {
+                min-width: auto;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stock-components {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-table {
+                font-size: 14px;
+            }
+
+            .stats-table th, 
+            .stats-table td {
+                padding: 8px;
+            }
         }
     </style>
 {% endblock %}
 
 {% block body %}
-    <div class="container-fluid py-4">
-        <h1 class="mb-4">Dashboard Inventaire</h1>
-        
-        {% for message in app.flashes('success') %}
-            <div class="alert alert-success">
-                {{ message }}
-            </div>
-        {% endfor %}
-        
-        <div class="row">
-            <div class="col-md-4">
-                <div class="stats-card">
-                    <h3>Total Produits</h3>
-                    <div class="number">{{ statsGlobales.totalProduits }}</div>
+<div class="stats-container">
+    {# En-tête #}
+    <div class="stats-section">
+        <div class="stats-header">
+            <h2>📊 Dashboard Inventaire avec Stock Live</h2>
+            <h4>
+                <div class="update-box">
+                    Calcul en temps réel : Stock Live = Inventaire + En Attente - En Cours
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stats-card">
-                    <h3>UV Disponibles</h3>
-                    <div class="number">{{ statsGlobales.totalUvDisponibles }}</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stats-card">
-                    <h3>Produits en Rupture</h3>
-                    <div class="number">{{ statsGlobales.produitsEnRupture }}</div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mt-4">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Gestion des Stocks</h2>
-                        <a href="{{ path('app_dashboard_inventaire_update') }}" class="btn btn-primary float-end">
-                            Mettre à jour les stocks
-                        </a>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" action="{{ path('app_dashboard_inventaire') }}" class="mb-4">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label for="codeProduit">Code Produit</label>
-                                        <input type="text" id="codeProduit" name="codeProduit" class="form-control" value="{{ filtres.codeProduit }}">
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label for="zone">Zone</label>
-                                        <select id="zone" name="zone" class="form-control">
-                                            <option value="">Toutes les zones</option>
-                                            {% for zone_item in zones %}
-                                                <option value="{{ zone_item.zone }}" {% if filtres.zone == zone_item.zone %}selected{% endif %}>
-                                                    {{ zone_item.zone }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label for="emplacement">Emplacement</label>
-                                        <input type="text" id="emplacement" name="emplacement" class="form-control" value="{{ filtres.emplacement }}">
-                                    </div>
-                                </div>
-                                <div class="col-md-3 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary w-100">Rechercher</button>
-                                </div>
-                            </div>
-                        </form>
-                        
-                        <div class="table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Code Produit</th>
-                                        <th>Désignation</th>
-                                        <th>Zone</th>
-                                        <th>Emplacement</th>
-                                        <th>No Palette</th>
-                                        <th>UV Total</th>
-                                        <th>UV en Sortie</th>
-                                        <th>Disponible</th>
-                                        <th>Statut</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for inventaire in inventaires %}
-                                        {% set disponible = inventaire.uvtotal - inventaire.uvensortie %}
-                                        <tr class="product-row" onclick="window.location='{{ path('app_dashboard_inventaire_detail', {'id': inventaire.id}) }}'">
-                                            <td>{{ inventaire.codeprod }}</td>
-                                            <td>{{ inventaire.dsignprod }}</td>
-                                            <td>{{ inventaire.zone }}</td>
-                                            <td>{{ inventaire.emplacement }}</td>
-                                            <td>{{ inventaire.nopal }}</td>
-                                            <td>{{ inventaire.uvtotal }}</td>
-                                            <td>{{ inventaire.uvensortie }}</td>
-                                            <td>{{ disponible }}</td>
-                                            <td>
-                                                {% if disponible <= 0 %}
-                                                    <span class="status-low">Rupture</span>
-                                                {% elseif disponible < 10 %}
-                                                    <span class="status-low">Faible</span>
-                                                {% else %}
-                                                    <span class="status-ok">OK</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% else %}
-                                        <tr>
-                                            <td colspan="9" class="text-center">Aucun résultat trouvé</td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </h4>
+            <button class="btn btn-primary" onclick="window.location.reload()">
+                Actualiser
+            </button>
         </div>
     </div>
+
+    {# Section de recherche #}
+    <div class="stats-section">
+        <h2 class="stats-header">🔍 Recherche par adresse</h2>
+        <p>Recherchez une adresse pour voir l'inventaire et le stock live correspondant</p>
+        <div class="search-box">
+            <div class="input-group">
+                <input type="text" id="adresseInput" placeholder="Entrez une adresse (ex: C3:C-15-00)" value="C3:C-15-00">
+            </div>
+            <button class="btn-primary" onclick="testerInventaire()">🔍 Rechercher</button>
+            <button class="btn-success" onclick="testerConnexion()">⚙️ Test Connexion</button>
+            <button class="btn-warning" onclick="debugRecherche()">🐛 Debug</button>
+        </div>
+    </div>
+
+    {# Zone de résultats #}
+    <div class="results" id="results"></div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        async function testerInventaire() {
+            const adresse = document.getElementById('adresseInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            
+            if (!adresse) {
+                resultsDiv.innerHTML = '<div class="stats-section"><div class="error">❌ Veuillez entrer une adresse</div></div>';
+                resultsDiv.style.display = 'block';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="stats-section"><div class="loading">🔍 Calcul du stock live en cours...</div></div>';
+            resultsDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('{{ path("app_dashboard_inventaire_recherche_simple") }}?adresse=' + encodeURIComponent(adresse));
+                const data = await response.json();
+
+                if (data.error) {
+                    if (data.error.includes('DateTime')) {
+                        resultsDiv.innerHTML = '<div class="stats-section"><div class="error">❌ Erreur de format de date dans la base de données<br><small>Contactez l\'administrateur - Erreur: ' + data.error + '</small></div></div>';
+                    } else {
+                        resultsDiv.innerHTML = '<div class="stats-section"><div class="error">❌ ' + data.error + '</div></div>';
+                    }
+                    return;
+                }
+
+                // Affichage des résultats avec Stock Live
+                let html = '<div class="stats-section">';
+                html += '<div class="success">✅ Calcul réussi pour l\'adresse: <strong>' + data.adresse + '</strong> (' + data.date_recherche + ')</div>';
+                
+                // STOCK LIVE PRINCIPAL
+                html += '<div class="stock-live-card">';
+                html += '<div class="stock-live-title">🎯 STOCK LIVE DISPONIBLE</div>';
+                html += '<div class="stock-live-value">' + data.stocks.stockLive.toLocaleString() + '</div>';
+                html += '<div class="stock-calculation">';
+                html += data.detail_calcul.formule + '<br>';
+                html += '<strong>' + data.detail_calcul.calcul + '</strong>';
+                html += '</div></div></div>';
+
+                // COMPOSANTS DU STOCK
+                html += '<div class="stats-section">';
+                html += '<h2 class="stats-header">📋 Composants du Stock Live</h2>';
+                html += '<div class="stock-components">';
+                html += '<div class="stock-component neutral">';
+                html += '<div class="stats-value" style="color: #3498db;">' + data.stocks.stockInventaire.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Stock Inventaire (Base)</div>';
+                html += '</div>';
+                html += '<div class="stock-component positive">';
+                html += '<div class="stats-value" style="color: #27ae60;">+' + data.stocks.articlesEnAttente.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Articles en Attente<br><small>(flasher IS NULL)</small></div>';
+                html += '</div>';
+                html += '<div class="stock-component negative">';
+                html += '<div class="stats-value" style="color: #e74c3c;">-' + data.stocks.articlesEnCours.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Articles en Cours<br><small>(flasher = \'Ok\')</small></div>';
+                html += '</div>';
+                html += '</div></div>';
+
+                // STATISTIQUES PRINCIPALES
+                html += '<div class="stats-section">';
+                html += '<h2 class="stats-header">📊 Vue d\'ensemble</h2>';
+                html += '<div class="row g-4">';
+                html += '<div class="col-md-2"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.inventaire.totalUv.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Stock Inventaire</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-2"><div class="stats-card">';
+                html += '<div class="stats-value" style="color: #27ae60;">' + data.stocks.stockLive.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Stock Live Disponible</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-2"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.suivi.totalNbArtTraite.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Total Traité</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-2"><div class="stats-card">';
+                const colorClass = data.difference.stockReel > 0 ? 'positive' : data.difference.stockReel < 0 ? 'negative' : 'neutral';
+                html += '<div class="stats-value ' + colorClass + '">' + data.difference.stockReel.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Stock Réel Final</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-2"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.inventaire.numerosNopalinfo.length + '</div>';
+                html += '<div class="stats-label">Palettes distinctes</div>';
+                html += '</div></div>';
+                html += '</div></div>';
+
+                if (data.inventaire.numerosNopalinfo.length > 0) {
+                    html += '<div class="stats-section">';
+                    html += '<div class="info-highlight">';
+                    html += '<h3>🏷️ Logique de calcul Stock Live</h3>';
+                    html += '<p><strong>Étape 1:</strong> Stock inventaire à l\'adresse <code>' + data.adresse + '</code> = <strong>' + data.stocks.stockInventaire.toLocaleString() + '</strong></p>';
+                    html += '<p><strong>Étape 2:</strong> Articles en attente (pas encore flashés) = <strong>+' + data.stocks.articlesEnAttente.toLocaleString() + '</strong></p>';
+                    html += '<p><strong>Étape 3:</strong> Articles en cours (flashés \'Ok\') = <strong>-' + data.stocks.articlesEnCours.toLocaleString() + '</strong></p>';
+                    html += '<p><strong>Résultat:</strong> Stock Live = <strong>' + data.stocks.stockLive.toLocaleString() + '</strong></p>';
+                    html += '<p><strong>Palettes:</strong> ' + data.inventaire.numerosNopalinfo.join(', ') + '</p>';
+                    html += '</div></div>';
+                }
+
+                if (data.suivi.nombreLignes > 0) {
+                    html += '<div class="stats-section">';
+                    html += '<h2 class="stats-header">✅ Détail des mouvements (' + data.date_recherche + ')</h2>';
+                    html += '<div class="row g-4">';
+                    html += '<div class="col-md-4"><div class="stats-card">';
+                    html += '<div class="stats-value">' + data.suivi.nombreLignesNonFlashees + '</div>';
+                    html += '<div class="stats-label">Lignes en attente</div>';
+                    html += '</div></div>';
+                    html += '<div class="col-md-4"><div class="stats-card">';
+                    html += '<div class="stats-value">' + data.suivi.nombreLignesFlashees + '</div>';
+                    html += '<div class="stats-label">Lignes flashées</div>';
+                    html += '</div></div>';
+                    html += '<div class="col-md-4"><div class="stats-card">';
+                    html += '<div class="stats-value">' + data.suivi.nombreLignes + '</div>';
+                    html += '<div class="stats-label">Total lignes</div>';
+                    html += '</div></div>';
+                    html += '</div></div>';
+
+                    // Affichage du détail par nopalinfo
+                    if (data.suivi.detailParNopalinfo && data.suivi.detailParNopalinfo.length > 0) {
+                        html += '<div class="stats-section">';
+                        html += '<h2 class="stats-header">📊 Détail par Nopalinfo</h2>';
+                        html += '<div class="table-responsive">';
+                        html += '<table class="stats-table detail-table">';
+                        html += '<thead><tr><th>Nopalinfo</th><th>En Attente</th><th>En Cours</th><th>Total Traité</th></tr></thead>';
+                        html += '<tbody>';
+                        
+                        data.suivi.detailParNopalinfo.forEach(function(detail) {
+                            html += '<tr>';
+                            html += '<td><strong>' + detail.nopalinfo + '</strong></td>';
+                            html += '<td style="color: #27ae60;">' + detail.nbArtNonFlashe.toLocaleString() + '</td>';
+                            html += '<td style="color: #e74c3c;">' + detail.nbArtFlasheNonValide.toLocaleString() + '</td>';
+                            html += '<td>' + detail.nbArtTraite.toLocaleString() + '</td>';
+                            html += '</tr>';
+                        });
+                        
+                        html += '</tbody></table></div></div>';
+                    }
+                } else if (data.inventaire.numerosNopalinfo.length > 0) {
+                    html += '<div class="stats-section">';
+                    html += '<div class="result-card">';
+                    html += '<h3>⚠️ Aucun mouvement trouvé</h3>';
+                    html += '<p>Aucun mouvement trouvé pour les palettes: <strong>' + data.inventaire.numerosNopalinfo.join(', ') + '</strong> à la date du <strong>' + data.date_recherche + '</strong></p>';
+                    html += '<p>Le stock live correspond au stock inventaire : <strong>' + data.stocks.stockLive.toLocaleString() + '</strong></p>';
+                    html += '</div></div>';
+                }
+
+                if (data.inventaire.produits.length > 0) {
+                    html += '<div class="stats-section">';
+                    html += '<h2 class="stats-header">📦 Détail des produits (Inventaire)</h2>';
+                    html += '<div class="table-responsive">';
+                    html += '<table class="stats-table">';
+                    html += '<thead><tr><th>Code Produit</th><th>Désignation</th><th>UV Total</th><th>Nopalinfo</th><th>Zone</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    data.inventaire.produits.forEach(function(produit) {
+                        html += '<tr>';
+                        html += '<td><strong>' + produit.codeProduit + '</strong></td>';
+                        html += '<td>' + (produit.designation || '-') + '</td>';
+                        html += '<td>' + produit.uvTotal.toLocaleString() + '</td>';
+                        html += '<td><strong>' + (produit.nopalinfo || '-') + '</strong></td>';
+                        html += '<td>' + (produit.zone || '-') + '</td>';
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table></div></div>';
+                }
+
+                if (data.suivi.mouvements && data.suivi.mouvements.length > 0) {
+                    html += '<div class="stats-section">';
+                    html += '<h2 class="stats-header">🚚 Détail des mouvements (Suivi)</h2>';
+                    html += '<div class="table-responsive">';
+                    html += '<table class="stats-table">';
+                    html += '<thead><tr><th>Code Produit</th><th>No_Pal</th><th>Nb_art</th><th>Flasher</th><th>Client</th><th>Zone</th><th>Date</th></tr></thead>';
+                    html += '<tbody>';
+                    
+                    data.suivi.mouvements.forEach(function(mouvement) {
+                        const flasherStatus = mouvement.flasher === null ? 
+                            '<span style="color: #f39c12;">En attente</span>' : 
+                            '<span style="color: #27ae60;">Ok</span>';
+                        
+                        html += '<tr>';
+                        html += '<td><strong>' + mouvement.codeProduit + '</strong></td>';
+                        html += '<td><strong>' + (mouvement.noPal || '-') + '</strong></td>';
+                        html += '<td>' + (mouvement.nbArt || 0) + '</td>';
+                        html += '<td>' + flasherStatus + '</td>';
+                        html += '<td>' + (mouvement.client || '-') + '</td>';
+                        html += '<td>' + (mouvement.zone || '-') + '</td>';
+                        html += '<td>' + (mouvement.dateUpdate || '-') + '</td>';
+                        html += '</tr>';
+                    });
+                    
+                    html += '</tbody></table></div></div>';
+                }
+
+                if (data.inventaire.produits.length === 0 && data.suivi.nombreLignes === 0) {
+                    html += '<div class="stats-section"><div class="no-data">Aucune donnée trouvée pour cette adresse</div></div>';
+                }
+
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="stats-section"><div class="error">❌ Erreur de communication: ' + error.message + '<br><small>Vérifiez votre connexion réseau</small></div></div>';
+            }
+        }
+
+        async function testerConnexion() {
+            const resultsDiv = document.getElementById('results');
+            
+            resultsDiv.innerHTML = '<div class="stats-section"><div class="loading">⚙️ Test de connexion en cours...</div></div>';
+            resultsDiv.style.display = 'block';
+
+            try {
+                const response = await fetch('{{ path("app_dashboard_inventaire_test_simple") }}');
+                const data = await response.json();
+
+                if (data.error) {
+                    resultsDiv.innerHTML = '<div class="stats-section"><div class="error">❌ ' + data.error + '</div></div>';
+                    return;
+                }
+
+                let html = '<div class="stats-section">';
+                html += '<div class="success">✅ ' + data.message + '</div>';
+                
+                html += '<div class="row g-4">';
+                html += '<div class="col-md-6"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.total_inventaire.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Enregistrements inventaire</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-6"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.total_suivi.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Total enregistrements suivi</div>';
+                html += '</div></div>';
+                html += '</div></div>';
+
+                html += '<div class="stats-section validation-card global">';
+                html += '<h2 class="stats-header">📊 Statistiques de validation - Global</h2>';
+                html += '<div class="row g-4">';
+                html += '<div class="col-md-4"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.validation_globale.total.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Total lignes</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-4"><div class="stats-card">';
+                html += '<div class="stats-value negative">' + data.validation_globale.non_valide.toLocaleString() + '</div>';
+                html += '<div class="stats-label">NON validées (' + data.validation_globale.pourcentage_non_valide + '%)</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-4"><div class="stats-card">';
+                html += '<div class="stats-value positive">' + data.validation_globale.valide.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Validées (' + data.validation_globale.pourcentage_valide + '%)</div>';
+                html += '</div></div>';
+                html += '</div></div>';
+
+                html += '<div class="stats-section validation-card">';
+                html += '<h2 class="stats-header">📅 Statistiques de validation - Aujourd\'hui (' + data.date_recherche + ')</h2>';
+                html += '<div class="row g-4">';
+                html += '<div class="col-md-4"><div class="stats-card">';
+                html += '<div class="stats-value">' + data.validation_aujourdhui.total.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Total lignes aujourd\'hui</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-4"><div class="stats-card">';
+                html += '<div class="stats-value negative">' + data.validation_aujourdhui.non_valide.toLocaleString() + '</div>';
+                html += '<div class="stats-label">NON validées (' + data.validation_aujourdhui.pourcentage_non_valide + '%)</div>';
+                html += '</div></div>';
+                html += '<div class="col-md-4"><div class="stats-card">';
+                html += '<div class="stats-value positive">' + data.validation_aujourdhui.valide.toLocaleString() + '</div>';
+                html += '<div class="stats-label">Validées (' + data.validation_aujourdhui.pourcentage_valide + '%)</div>';
+                html += '</div></div>';
+                html += '</div></div>';
+                
+                html += '<div class="stats-section">';
+                html += '<h2 class="stats-header">📋 Exemples d\'adresses disponibles</h2>';
+                html += '<p>Cliquez sur une adresse pour tester le calcul du stock live :</p>';
+                html += '<div class="table-responsive">';
+                html += '<table class="stats-table">';
+                html += '<thead><tr><th>Adresse</th><th>Code Produit</th><th>UV Total</th><th>Nopalinfo</th></tr></thead>';
+                html += '<tbody>';
+                
+                if (data.exemples_adresses.length > 0) {
+                    data.exemples_adresses.forEach(function(exemple) {
+                        html += '<tr>';
+                        html += '<td><button class="clickable-address" onclick="document.getElementById(\'adresseInput\').value=\'' + exemple.emplacement + '\'; testerInventaire();">';
+                        html += exemple.emplacement + '</button></td>';
+                        html += '<td>' + exemple.codeprod + '</td>';
+                        html += '<td>' + exemple.uvtotal + '</td>';
+                        html += '<td><strong>' + (exemple.nopalinfo || '-') + '</strong></td>';
+                        html += '</tr>';
+                    });
+                } else {
+                    html += '<tr><td colspan="4" class="no-data">Aucun exemple disponible</td></tr>';
+                }
+                
+                html += '</tbody></table></div></div>';
+                
+                resultsDiv.innerHTML = html;
+
+            } catch (error) {
+                resultsDiv.innerHTML = '<div class="stats-section"><div class="error">❌ Erreur de communication: ' + error.message + '</div></div>';
+            }
+        }
+
+        function debugRecherche() {
+            const adresse = document.getElementById('adresseInput').value.trim();
+            
+            if (!adresse) {
+                alert('Veuillez entrer une adresse');
+                return;
+            }
+
+            // Ouvrir la page de debug dans une nouvelle fenêtre
+            window.open('{{ path("app_dashboard_inventaire_debug_recherche") }}?adresse=' + encodeURIComponent(adresse), '_blank', 'width=1200,height=800');
+        }
+
+        // Recherche automatique avec Entrée
+        document.getElementById('adresseInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                testerInventaire();
+            }
+        });
+
+        // Test automatique au chargement de la page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Décommentez la ligne suivante pour un test automatique au chargement
+            // testerConnexion();
+        });
+    </script>
 {% endblock %}

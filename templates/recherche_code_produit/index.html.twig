@@ -1,0 +1,358 @@
+{# templates/suividupreparationdujour/stats.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stat-card {
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .loading { display: none; }
+        .badge-en-attente { background-color: #ffc107; }
+        .badge-en-cours   { background-color: #17a2b8; }
+        .badge-traite     { background-color: #28a745; }
+        .badge-autre      { background-color: #6c757d; }
+
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .emplacement-card {
+            border: 1px solid #dee2e6;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+        .emplacement-header {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #dee2e6;
+            border-radius: 8px 8px 0 0;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-search me-2"></i>
+                        Recherche par Code Produit
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form id="rechercheForm" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="codeProduit" class="form-label">Code Produit *</label>
+                            <input type="text" class="form-control" id="codeProduit" placeholder="Ex: ABC123" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="emplacementFiltre" class="form-label">Emplacement (optionnel)</label>
+                            <select class="form-select" id="emplacementFiltre">
+                                <option value="">Tous les emplacements</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>
+                                Rechercher
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="btnReset">
+                                <i class="fas fa-undo me-1"></i>
+                                Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Chargement...</span>
+        </div>
+        <p class="mt-2">Recherche en cours...</p>
+    </div>
+
+    <!-- Résultats -->
+    <div id="resultats" style="display: none;">
+        <!-- Statistiques générales -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-primary">Emplacements</h5>
+                        <h3 id="statEmplacements" class="text-primary">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-success">Stock Inventaire</h5>
+                        <h3 id="statInventaire" class="text-success">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-info">Suivi Aujourd'hui</h5>
+                        <h3 id="statSuivi" class="text-info">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-warning">Stock Live Total</h5>
+                        <h3 id="statStockLive" class="text-warning">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Détails par emplacement -->
+        <div id="emplacementsDetails"></div>
+    </div>
+
+    <!-- Message d'erreur -->
+    <div id="erreur" class="alert alert-danger" style="display: none;">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <span id="messageErreur"></span>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {# Si base2.html.twig ne charge pas déjà Bootstrap JS et FontAwesome JS, laisse ces 2 lignes, sinon tu peux les retirer #}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+
+    <script>
+        let donneesActuelles = null;
+
+        document.getElementById('rechercheForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            rechercher();
+        });
+
+        document.getElementById('btnReset').addEventListener('click', function() {
+            document.getElementById('rechercheForm').reset();
+            document.getElementById('emplacementFiltre').innerHTML = '<option value="">Tous les emplacements</option>';
+            document.getElementById('resultats').style.display = 'none';
+            document.getElementById('erreur').style.display = 'none';
+            donneesActuelles = null;
+        });
+
+        async function rechercher() {
+            const codeProduit = document.getElementById('codeProduit').value.trim();
+            const emplacementFiltre = document.getElementById('emplacementFiltre').value;
+
+            if (!codeProduit) {
+                afficherErreur('Veuillez saisir un code produit');
+                return;
+            }
+
+            // Afficher le loading
+            document.querySelector('.loading').style.display = 'block';
+            document.getElementById('resultats').style.display = 'none';
+            document.getElementById('erreur').style.display = 'none';
+
+            try {
+                const params = new URLSearchParams({ code_produit: codeProduit });
+                if (emplacementFiltre) params.append('emplacement', emplacementFiltre);
+
+                const response = await fetch(`/recherche/code-produit/api?${params}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+
+                const raw = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(raw);
+                } catch (e) {
+                    // Réponse non-JSON (souvent HTML d'erreur/redirect/login)
+                    throw new Error('Réponse non-JSON reçue du serveur:\n' + raw.slice(0, 300));
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.error || `Erreur HTTP ${response.status}`);
+                }
+
+                donneesActuelles = data;
+                afficherResultats(data);
+
+            } catch (error) {
+                afficherErreur(error.message);
+            } finally {
+                document.querySelector('.loading').style.display = 'none';
+            }
+        }
+
+        function afficherResultats(data) {
+            const stats = data?.statistiques ?? {};
+            document.getElementById('statEmplacements').textContent = stats.nombreEmplacements ?? 0;
+            document.getElementById('statInventaire').textContent  = formatNumber(stats.totalInventaire ?? 0);
+            document.getElementById('statSuivi').textContent       = formatNumber(stats.totalSuivi ?? 0);
+            document.getElementById('statStockLive').textContent   = formatNumber(stats.stockLiveTotal ?? 0);
+
+            // Select des emplacements
+            const selectEmplacement = document.getElementById('emplacementFiltre');
+            const dispo    = Array.isArray(data?.emplacementsDisponibles) ? data.emplacementsDisponibles : [];
+            const selected = data?.emplacementFiltre ?? '';
+            selectEmplacement.innerHTML = '<option value="">Tous les emplacements</option>';
+            dispo.forEach(emplacement => {
+                const option = document.createElement('option');
+                option.value = emplacement;
+                option.textContent = emplacement;
+                if (emplacement === selected) option.selected = true;
+                selectEmplacement.appendChild(option);
+            });
+
+            // Détails
+            const emplacements = Array.isArray(data?.emplacements) ? data.emplacements : [];
+            afficherEmplacements(emplacements);
+
+            document.getElementById('resultats').style.display = 'block';
+        }
+
+        function afficherEmplacements(emplacements) {
+            const container = document.getElementById('emplacementsDetails');
+            container.innerHTML = '';
+
+            emplacements.forEach(emp => {
+                const inv  = emp?.inventaire ?? { uvTotal: 0, produits: [] };
+                const suiv = emp?.suivi ?? { nbArtTotal: 0, nbArtEnAttente: 0, nbArtEnCours: 0, mouvements: [] };
+
+                const card = document.createElement('div');
+                card.className = 'emplacement-card';
+                card.innerHTML = `
+                    <div class="emplacement-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-1">
+                                    <i class="fas fa-map-marker-alt me-2"></i>
+                                    ${escapeHtml(emp?.emplacement ?? 'N/A')}
+                                </h5>
+                                <small class="text-muted">Zone: ${escapeHtml(emp?.zone ?? 'Non définie')}</small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-primary fs-6">Stock Live: ${formatNumber(emp?.stockLive ?? 0)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-success">
+                                    <i class="fas fa-boxes me-1"></i>
+                                    Inventaire (${formatNumber(inv.uvTotal)} UV)
+                                </h6>
+                                ${afficherInventaire(inv.produits)}
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-info">
+                                    <i class="fas fa-truck me-1"></i>
+                                    Suivi Aujourd'hui (${formatNumber(suiv.nbArtTotal)} articles)
+                                </h6>
+                                <div class="mb-2">
+                                    <span class="badge badge-en-attente me-1">En attente: ${formatNumber(suiv.nbArtEnAttente)}</span>
+                                    <span class="badge badge-en-cours me-1">En cours: ${formatNumber(suiv.nbArtEnCours)}</span>
+                                </div>
+                                ${afficherSuivi(suiv.mouvements)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function afficherInventaire(produits) {
+            const rows = Array.isArray(produits) ? produits : [];
+            if (rows.length === 0) {
+                return '<p class="text-muted small">Aucun produit en inventaire</p>';
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
+            html += '<thead><tr><th>Désignation</th><th>UV</th><th>Nopalinfo</th></tr></thead><tbody>';
+
+            rows.forEach(p => {
+                html += `<tr>
+                    <td>${escapeHtml(p?.designation ?? 'N/A')}</td>
+                    <td>${formatNumber(p?.uvTotal ?? 0)}</td>
+                    <td>${escapeHtml(p?.nopalinfo ?? 'N/A')}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        function afficherSuivi(mouvements) {
+            const rows = Array.isArray(mouvements) ? mouvements : [];
+            if (rows.length === 0) {
+                return '<p class="text-muted small">Aucun mouvement aujourd\'hui</p>';
+            }
+
+            let html = '<div class="table-responsive"><table class="table table-sm table-striped">';
+            html += '<thead><tr><th>N° Palette</th><th>Nb Art</th><th>Client</th><th>Statut</th><th>Date</th></tr></thead><tbody>';
+
+            rows.forEach(m => {
+                const badgeClass = getBadgeClass(m?.statut ?? '');
+                html += `<tr>
+                    <td>${escapeHtml(m?.noPal ?? 'N/A')}</td>
+                    <td>${formatNumber(m?.nbArt ?? 0)}</td>
+                    <td>${escapeHtml(m?.client ?? 'N/A')}</td>
+                    <td><span class="badge ${badgeClass}">${escapeHtml(m?.statut ?? 'N/A')}</span></td>
+                    <td>${escapeHtml(m?.dateUpdate ?? 'N/A')}</td>
+                </tr>`;
+            });
+
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        function getBadgeClass(statut) {
+            switch ((statut || '').toUpperCase()) {
+                case 'EN ATTENTE': return 'badge-en-attente';
+                case 'EN COURS':   return 'badge-en-cours';
+                case 'TRAITÉ':
+                case 'TRAITE':     return 'badge-traite';
+                default:           return 'badge-autre';
+            }
+        }
+
+        function formatNumber(num) {
+            return new Intl.NumberFormat('fr-FR').format(num || 0);
+        }
+
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.innerText = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        function afficherErreur(message) {
+            document.getElementById('messageErreur').textContent = message;
+            document.getElementById('erreur').style.display = 'block';
+            document.getElementById('resultats').style.display = 'none';
+        }
+    </script>
+{% endblock %}

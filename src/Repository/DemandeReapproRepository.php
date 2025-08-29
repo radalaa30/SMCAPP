@@ -25,9 +25,11 @@ class DemandeReapproRepository extends ServiceEntityRepository
         ->where('e.Statut != :valide')         // Filtrer où le statut n'est pas 'V'
         ->andWhere('e.Statut != :encour')      // et le statut n'est pas 'E'
         ->andWhere('e.idCariste = :idCariste')// et id_cariste est égal à 62
+        ->andWhere('e.UsernamePrep != :coldUsername')
         ->setParameter('valide', 'V')          // Définir le paramètre 'valide' avec la valeur 'V'
         ->setParameter('encour', 'Encours')          // Définir le paramètre 'encour' avec la valeur 'E'
         ->setParameter('idCariste', $idCariste)        // Définir le paramètre 'idCariste' avec la valeur 62
+        ->setParameter('coldUsername', 'Cold')
         ->orderBy('e.CreateAt', 'ASC')         // Trier par date de création en ordre croissant
         ->setMaxResults(1)                     // Limiter les résultats à 1
         ->getQuery();                          // Obtenir la requête
@@ -54,28 +56,56 @@ class DemandeReapproRepository extends ServiceEntityRepository
     }
 
     public function findOldestByStatusExcludingVAndEBYIDcariste(int $idCariste)
-{
-    $entityManager = $this->getEntityManager();
+        {
+            $entityManager = $this->getEntityManager();
 
-    // Créer le QueryBuilder et définir la requête
-    $query = $this->createQueryBuilder('e')
-        ->where('e.idCariste = :idCariste') // Filtrer où id_cariste est égal au paramètre idCariste
-        ->andWhere('e.Statut = :encours')   // et le statut est 'Encours'
-        ->setParameter('idCariste', $idCariste) // Définir le paramètre 'idCariste'
-        ->setParameter('encours', 'Encours')    // Définir le paramètre 'encours' avec la valeur 'Encours'
-        ->orderBy('e.CreateAt', 'ASC')     // Trier par date de création en ordre croissant
-        ->setMaxResults(1)                 // Limiter les résultats à 1
-        ->getQuery();                      // Obtenir la requête
+            // Créer le QueryBuilder et définir la requête
+            $query = $this->createQueryBuilder('e')
+                ->where('e.idCariste = :idCariste') // Filtrer où id_cariste est égal au paramètre idCariste
+                ->andWhere('e.Statut = :encours')   // et le statut est 'Encours'
+                ->andWhere('e.UsernamePrep != :coldUsername')
+                ->setParameter('idCariste', $idCariste) // Définir le paramètre 'idCariste'
+                ->setParameter('encours', 'Encours')    // Définir le paramètre 'encours' avec la valeur 'Encours'
+                ->setParameter('coldUsername', 'Cold')
+                ->orderBy('e.CreateAt', 'ASC')     // Trier par date de création en ordre croissant
+                ->setMaxResults(1)                 // Limiter les résultats à 1
+                ->getQuery();                      // Obtenir la requête
 
-    try {
-        // Exécuter la requête et obtenir le résultat unique
-        $entity = $query->getSingleResult();
-    } catch (\Doctrine\ORM\NoResultException $e) {
-        return null; // Aucun résultat trouvé
-    }
+            try {
+                // Exécuter la requête et obtenir le résultat unique
+                $entity = $query->getSingleResult();
+            } catch (\Doctrine\ORM\NoResultException $e) {
+                return null; // Aucun résultat trouvé
+            }
 
-    return $entity;
-}
+            return $entity;
+        }
+    
+        public function findOldestByStatusExcludingVAndEBYIDcaristecold(int $idCariste)
+        {
+            $entityManager = $this->getEntityManager();
+
+            // Créer le QueryBuilder et définir la requête
+            $query = $this->createQueryBuilder('e')
+                ->where('e.idCariste = :idCariste') // Filtrer où id_cariste est égal au paramètre idCariste
+                ->andWhere('e.Statut = :encours')   // et le statut est 'Encours'
+                ->andWhere('e.UsernamePrep = :coldUsername')
+                ->setParameter('idCariste', $idCariste) // Définir le paramètre 'idCariste'
+                ->setParameter('encours', 'Encours')    // Définir le paramètre 'encours' avec la valeur 'Encours'
+                ->setParameter('coldUsername', 'Cold')
+                ->orderBy('e.CreateAt', 'ASC')     // Trier par date de création en ordre croissant
+                ->setMaxResults(1)                 // Limiter les résultats à 1
+                ->getQuery();                      // Obtenir la requête
+
+            try {
+                // Exécuter la requête et obtenir le résultat unique
+                $entity = $query->getSingleResult();
+            } catch (\Doctrine\ORM\NoResultException $e) {
+                return null; // Aucun résultat trouvé
+            }
+
+            return $entity;
+        }
 
 public function findOldestByStatusA(int $idCariste,string $userusername )
 {
@@ -84,7 +114,9 @@ public function findOldestByStatusA(int $idCariste,string $userusername )
     // Créer le QueryBuilder et définir la requête
     $query = $this->createQueryBuilder('e')
         ->where('e.Statut = :statutA')   // Filtrer où le statut est 'A'
+        ->andWhere('e.UsernamePrep != :coldUsername')
         ->setParameter('statutA', 'A')   // Définir le paramètre 'statutA' avec la valeur 'A'
+        ->setParameter('coldUsername', 'Cold')
         ->orderBy('e.CreateAt', 'ASC')   // Trier par date de création en ordre croissant
         ->setMaxResults(1)               // Limiter les résultats à 1
         ->getQuery();                    // Obtenir la requête
@@ -104,6 +136,83 @@ public function findOldestByStatusA(int $idCariste,string $userusername )
     $entity->setUsernameCariste($userusername);
     
 
+
+    // Sauvegarder les changements dans la base de données
+    $entityManager->persist($entity);
+    $entityManager->flush();
+
+    return $entity;
+}
+public function findOldestByStatusAcold(int $idCariste, string $userusername)
+{
+    $entityManager = $this->getEntityManager();
+
+    // Créer le QueryBuilder et définir la requête avec priorisation par adresse
+    $query = $this->createQueryBuilder('e')
+        ->where('e.Statut = :statutA')   // Filtrer où le statut est 'A'
+        ->andWhere('e.UsernamePrep = :coldUsername')
+        ->setParameter('statutA', 'A')   // Définir le paramètre 'statutA' avec la valeur 'A'
+        ->setParameter('coldUsername', 'Cold')
+        ->addOrderBy('CASE 
+            WHEN e.Adresse LIKE :c4d THEN 1
+            WHEN e.Adresse LIKE :c4c THEN 2
+            WHEN e.Adresse LIKE :c4b THEN 3
+            WHEN e.Adresse LIKE :c4a THEN 4
+            WHEN e.Adresse LIKE :c3h THEN 5
+            WHEN e.Adresse LIKE :c3g THEN 6
+            WHEN e.Adresse LIKE :c3f THEN 7
+            WHEN e.Adresse LIKE :c3e THEN 8
+            WHEN e.Adresse LIKE :c3d THEN 9
+            WHEN e.Adresse LIKE :c3c THEN 10
+            WHEN e.Adresse LIKE :c3b THEN 11
+            WHEN e.Adresse LIKE :c3a THEN 12
+            WHEN e.Adresse LIKE :c2h THEN 13
+            WHEN e.Adresse LIKE :c2g THEN 14
+            WHEN e.Adresse LIKE :c2f THEN 15
+            WHEN e.Adresse LIKE :c2e THEN 16
+            WHEN e.Adresse LIKE :c2d THEN 17
+            WHEN e.Adresse LIKE :c2c THEN 18
+            WHEN e.Adresse LIKE :c2b THEN 19
+            WHEN e.Adresse LIKE :c2a THEN 20
+            ELSE 999
+        END', 'ASC')
+        ->addOrderBy('e.CreateAt', 'ASC')   // Ensuite trier par date de création en ordre croissant
+        ->setParameter('c4d', 'C4:D%')
+        ->setParameter('c4c', 'C4:C%')
+        ->setParameter('c4b', 'C4:B%')
+        ->setParameter('c4a', 'C4:A%')
+        ->setParameter('c3h', 'C3:H%')
+        ->setParameter('c3g', 'C3:G%')
+        ->setParameter('c3f', 'C3:F%')
+        ->setParameter('c3e', 'C3:E%')
+        ->setParameter('c3d', 'C3:D%')
+        ->setParameter('c3c', 'C3:C%')
+        ->setParameter('c3b', 'C3:B%')
+        ->setParameter('c3a', 'C3:A%')
+        ->setParameter('c2h', 'C2:H%')
+        ->setParameter('c2g', 'C2:G%')
+        ->setParameter('c2f', 'C2:F%')
+        ->setParameter('c2e', 'C2:E%')
+        ->setParameter('c2d', 'C2:D%')
+        ->setParameter('c2c', 'C2:C%')
+        ->setParameter('c2b', 'C2:B%')
+        ->setParameter('c2a', 'C2:A%')
+        ->setMaxResults(1)               // Limiter les résultats à 1
+        ->getQuery();                    // Obtenir la requête
+
+    try {
+        // Exécuter la requête et obtenir le résultat unique
+        $entity = $query->getSingleResult();
+    } catch (\Doctrine\ORM\NoResultException $e) {
+        return null; // Aucun résultat trouvé
+    }
+
+    // Modifier le statut de l'entité
+    $entity->setStatut('Encours');
+    // Modifier le statut de l'entité
+    $entity->setidCariste($idCariste);
+    
+    $entity->setUsernameCariste($userusername);
 
     // Sauvegarder les changements dans la base de données
     $entityManager->persist($entity);
@@ -216,6 +325,7 @@ public function findOldestByStatusA(int $idCariste,string $userusername )
      */
     public function findExistingDemandeByAdresse(string $adresse): ?DemandeReappro
     {
+        
         return $this->createQueryBuilder('d')
             ->where('d.Adresse = :adresse')
             ->andWhere('d.Statut IN (:statuts)')

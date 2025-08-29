@@ -12,13 +12,17 @@
        {# Groupe de boutons d'action #}
 <div class="action-header mb-4">
     <div class="action-buttons">
-        <a href="{{ path('app_reappro') }}" class="btn btn-action btn-success">
+        <a href="{{ path('add_reappro') }}" class="btn btn-action btn-success">
             <i class="fas fa-plus-circle me-2"></i>
             Nouvelle demande
         </a>
         <a href="{{ path('admin_dashboard') }}" class="btn btn-action btn-secondary">
             <i class="fas fa-sync-alt me-2"></i>
             Actualiser
+        </a>
+        <a href="{{ path('app_blencours_index') }}" class="btn btn-action btn-secondary">
+            <i class="fas fa-sync-alt me-2"></i>
+            Ajouter Un BL
         </a>
     </div>
 </div>

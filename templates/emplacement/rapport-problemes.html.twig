@@ -1,0 +1,338 @@
+{# emplacement/rapport-problemes.html.twig #}
+
+{% extends 'base2.html.twig' %}
+
+{% block title %}Rapport des problèmes signalés{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .tableau-problemes {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .tableau-problemes th,
+        .tableau-problemes td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .tableau-problemes th {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .tableau-problemes tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .tableau-problemes tr:hover {
+            background-color: #e9ecef;
+        }
+        
+        .probleme-resolu {
+            background-color: #d4edda !important;
+        }
+        
+        .probleme-non-resolu {
+            background-color: #f8d7da !important;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        .status-resolu {
+            background-color: #28a745;
+        }
+        
+        .status-non-resolu {
+            background-color: #dc3545;
+        }
+        
+        .statistiques {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            width: 250px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .filters {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .export-buttons {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        
+        .btn-resoudre {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .btn-resoudre:hover {
+            background-color: #218838;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #f8f9fa;
+        }
+        
+        .tab.active {
+            background-color: #343a40;
+            color: white;
+            border-color: #343a40;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Gestion des onglets
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // Retirer la classe active de tous les onglets
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(tc => tc.classList.remove('active'));
+                    
+                    // Ajouter la classe active à l'onglet cliqué
+                    this.classList.add('active');
+                    document.getElementById(this.dataset.tab).classList.add('active');
+                });
+            });
+            
+            // Fonction pour résoudre un problème
+            window.resoudreProbleme = function(problemeId) {
+                if (confirm('Êtes-vous sûr de vouloir marquer ce problème comme résolu ?')) {
+                    fetch(`/emplacements/resoudre-probleme/${problemeId}`, {
+                        method: 'POST'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Problème marqué comme résolu');
+                            location.reload();
+                        } else {
+                            alert('Erreur: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erreur:', error);
+                        alert('Une erreur est survenue');
+                    });
+                }
+            };
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <h1 class="my-4">Rapport des problèmes signalés</h1>
+                
+                <a href="{{ path('app_emplacements') }}" class="btn btn-secondary mb-4">
+                    ← Retour à la visualisation des emplacements
+                </a>
+                
+                <!-- Statistiques -->
+                <div class="statistiques">
+                    <div class="stat-card">
+                        <h3>Total des problèmes</h3>
+                        <div class="stat-value">{{ totalProblemes }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Problèmes non résolus</h3>
+                        <div class="stat-value text-danger">{{ totalNonResolus }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Problèmes résolus</h3>
+                        <div class="stat-value text-success">{{ totalResolus }}</div>
+                    </div>
+                </div>
+                
+                <!-- Onglets -->
+                <div class="tabs">
+                    <div class="tab active" data-tab="tous">Tous les problèmes</div>
+                    <div class="tab" data-tab="non-resolus">Non résolus</div>
+                    <div class="tab" data-tab="resolus">Résolus</div>
+                </div>
+                
+                <!-- Contenu des onglets -->
+                <div id="tous" class="tab-content active">
+                    <h2>Tous les problèmes signalés</h2>
+                    {% if problemes|length > 0 %}
+                        <table class="tableau-problemes">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Emplacement</th>
+                                    <th>Cellule/Allée</th>
+                                    <th>Palette</th>
+                                    <th>Produit</th>
+                                    <th>Commentaire</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for probleme in problemes %}
+                                    <tr class="{{ probleme.resolu ? 'probleme-resolu' : 'probleme-non-resolu' }}">
+                                        <td>{{ probleme.dateSignalement|date('d/m/Y H:i') }}</td>
+                                        <td>{{ probleme.emplacement }}</td>
+                                        <td>{{ probleme.cellule }}/{{ probleme.allee }}</td>
+                                        <td>{{ probleme.nopalette|default('-') }}</td>
+                                        <td>{{ probleme.codeproduit|default('-') }}</td>
+                                        <td>{{ probleme.commentaire }}</td>
+                                        <td>
+                                            <span class="status-badge {{ probleme.resolu ? 'status-resolu' : 'status-non-resolu' }}">
+                                                {{ probleme.resolu ? 'Résolu' : 'Non résolu' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if not probleme.resolu %}
+                                                <button onclick="resoudreProbleme({{ probleme.id }})" class="btn-resoudre">
+                                                    Résoudre
+                                                </button>
+                                            {% else %}
+                                                Résolu le {{ probleme.dateResolution|date('d/m/Y H:i') }}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>Aucun problème signalé.</p>
+                    {% endif %}
+                </div>
+                
+                <div id="non-resolus" class="tab-content">
+                    <h2>Problèmes non résolus</h2>
+                    {% if problemesNonResolus|length > 0 %}
+                        <table class="tableau-problemes">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Emplacement</th>
+                                    <th>Cellule/Allée</th>
+                                    <th>Palette</th>
+                                    <th>Produit</th>
+                                    <th>Commentaire</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for probleme in problemesNonResolus %}
+                                    <tr>
+                                        <td>{{ probleme.dateSignalement|date('d/m/Y H:i') }}</td>
+                                        <td>{{ probleme.emplacement }}</td>
+                                        <td>{{ probleme.cellule }}/{{ probleme.allee }}</td>
+                                        <td>{{ probleme.nopalette|default('-') }}</td>
+                                        <td>{{ probleme.codeproduit|default('-') }}</td>
+                                        <td>{{ probleme.commentaire }}</td>
+                                        <td>
+                                            <button onclick="resoudreProbleme({{ probleme.id }})" class="btn-resoudre">
+                                                Résoudre
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>Aucun problème non résolu.</p>
+                    {% endif %}
+                </div>
+                
+                <div id="resolus" class="tab-content">
+                    <h2>Problèmes résolus</h2>
+                    {% if problemesResolus|length > 0 %}
+                        <table class="tableau-problemes">
+                            <thead>
+                                <tr>
+                                    <th>Date signalement</th>
+                                    <th>Emplacement</th>
+                                    <th>Cellule/Allée</th>
+                                    <th>Palette</th>
+                                    <th>Produit</th>
+                                    <th>Commentaire</th>
+                                    <th>Date résolution</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for probleme in problemesResolus %}
+                                    <tr>
+                                        <td>{{ probleme.dateSignalement|date('d/m/Y H:i') }}</td>
+                                        <td>{{ probleme.emplacement }}</td>
+                                        <td>{{ probleme.cellule }}/{{ probleme.allee }}</td>
+                                        <td>{{ probleme.nopalette|default('-') }}</td>
+                                        <td>{{ probleme.codeproduit|default('-') }}</td>
+                                        <td>{{ probleme.commentaire }}</td>
+                                        <td>{{ probleme.dateResolution|date('d/m/Y H:i') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>Aucun problème résolu.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

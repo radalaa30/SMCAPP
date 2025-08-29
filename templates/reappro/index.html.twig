@@ -9,20 +9,41 @@
 </style>
 
 <div class="example-wrapper">
-    {% if results is not empty %}
-        {% for result in results %}
-            <div>
-                <h1>Mission en cours</h1>
-                <p><strong>Adresse:</strong> {{ result.adresse }}</p>
-                <p><strong>Statut:</strong> {{ result.statut }}</p>
-                <p><input type="text" oncopy="return false;" onpaste="return false;" oncut="return false;" name="adresse_dist" id="adresse_dist"/></p>
-                <p><a class="btn btn-primary btn-sm mission-link" href="{{ path('edit_validation', {id: result.id}) }}">Prendre la mission</a></p>
-            </div>
-            <hr>
-        {% endfor %}
-    {% else %}
-        <p>"Aucune palette disponible pour le moment."</p>
-    {% endif %}
+   {% if results is not empty %}
+    {% for result in results %}
+        <div>
+            <h1>Mission en cours</h1>
+            <p>
+                {% if result.usernamePrep == 'Cold' %}
+                    
+                    <span style="color: red; font-weight: bold;">Urgent!!</span>
+                {% else %}
+                    <span style="color: red; font-weight: bold;">Urgent!!</span>
+                {% endif %}
+            </p>
+            <p>
+                {% if result.sonPicking == 1 %}
+                {% else %}
+                    <span style="color: red; font-weight: bold;">Pas de Picking</span>
+                {% endif %}
+            </p>
+            <p><strong>Adresse:</strong> {{ result.adresse }}</p>
+            <p><strong>Statut:</strong> {{ result.statut }}</p>
+
+            <p><input type="text" oncopy="return false;" onpaste="return false;" oncut="return false;" name="adresse_dist" id="adresse_dist"/></p>
+            <p>
+                {% if result.id is defined and result.id is not null %}
+                    <a class="btn btn-primary btn-sm mission-link" href="{{ path('edit_validation', {id: result.id}) }}">Prendre la mission</a>
+                {% else %}
+                    <span class="btn btn-secondary btn-sm disabled">Prendre la mission (ID manquant)</span>
+                {% endif %}
+            </p>
+        </div>
+        <hr>
+    {% endfor %}
+{% else %}
+    <p>Aucune mission disponible pour le moment.</p>
+{% endif %}
 </div>
 
 {% endblock %}

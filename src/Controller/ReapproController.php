@@ -2,242 +2,355 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Entity\DemandeReappro;
+use App\Entity\Blencours;
+use App\Entity\Suividupreparationdujour;
+use App\Form\ValidationType;
+use App\Repository\DemandeReapproRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Component\HttpFoundation\Request;
-use App\Repository\DemandeReapproRepository;
-use Symfony\Component\VarDumper\VarDumper;
-use App\Entity\DemandeReappro;
-use App\Form\Validation;
-use App\Form\ValidationType;
-use App\Form\DemandeType;
-use Symfony\Component\Form\Extension\Core\Type\DateType;
-use Symfony\Component\Form\Extension\Core\Type\SubmitType;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
-//use Symfony\Bundle\SecurityBundle\Security;
-use Symfony\Component\Security\Core\Security;
 
 class ReapproController extends AbstractController
 {
+#[Route('/', name: 'app_reappro')]
+public function index(
+    Request $request,
+    EntityManagerInterface $em,
+    DemandeReapproRepository $repositoryReappro
+): Response {
+    $this->denyAccessUnlessGranted('ROLE_USER');
 
-    #[Route('/', name: 'app_reappro')]
-    public function index(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $hasher, DemandeReapproRepository $repositoryReappro): Response
-    {
-        // Vérifie si l'utilisateur a les droits d'accès nécessaires
-        $this->denyAccessUnlessGranted('ROLE_USER');
+    $user = $this->getUser();
+    if (!$user) {
+        throw $this->createAccessDeniedException('User not authenticated.');
+    }
+
+    $userId = $user->getId();
+    $username = $user->getUsername();
+
     
-        // Logique pour vérifier la liste des reappros
-        $user = $this->getUser();
+    // Recherche selon différents critères (dans l'ordre de priorité)
+    $demandeUrgent = $repositoryReappro->findOldestByStatusExcludingVAndEBYIDcariste($userId)
+        ?? $repositoryReappro->findOldestByStatusExcludingVAndE($userId)
+        ?? $repositoryReappro->findOldestByStatusA($userId, $username);
     
-        // Vérifier si l'utilisateur est connecté
-        if (!$user) {
-            // Gestion des cas où l'utilisateur n'est pas connecté
-            return new Response('User not authenticated.');
-        }
-    
-        // Extraire les données de l'utilisateur
-        $userId = $user->getId();
-        $userusername = $user->getUsername();
-        
-        // Essayer de trouver une demande par idCariste et statut excluant 'V' et 'E'
-        $demandeuser = $repositoryReappro->findOldestByStatusExcludingVAndEBYIDcariste($userId);
-        
-        if ($demandeuser !== null) {
-            // Si une demande est trouvée, rendre la vue avec cette demande
-            return $this->render('reappro/index.html.twig', [
-                'results' => [$demandeuser]
-            ]);
-        }
-        
-        // Essayer de trouver une demande par statut excluant 'V' et 'E'
-        $demande = $repositoryReappro->findOldestByStatusExcludingVAndE($userId);
-        
-        if ($demande !== null) {
-            // Si une demande est trouvée, rendre la vue avec cette demande
-            return $this->render('reappro/index.html.twig', [
-                'results' => [$demande]
-            ]);
-        }
-        
-        // Essayer de trouver une demande par statut 'A'
-        $demandeAA = $repositoryReappro->findOldestByStatusA($userId,$userusername);
-        
-        if ($demandeAA !== null) {
-            // Si une demande est trouvée, rendre la vue avec cette demande
-            return $this->render('reappro/index.html.twig', [
-                'results' => [$demandeAA]
-            ]);
-        }
-        
-        // Si aucune demande n'est trouvée, rendre la vue avec un message approprié
-        $this->addFlash('notice', 'Aucune palette');
-        
+    if ($demandeUrgent) {
         return $this->render('reappro/index.html.twig', [
-            'results' => []
+            'results' => [$demandeUrgent]
+        ]);
+    }
+    // Recherche selon différents critères (dans l'ordre de priorité)
+            $demandeCold = $repositoryReappro->findOldestByStatusExcludingVAndEBYIDcaristecold($userId)
+                ?? $repositoryReappro->findOldestByStatusExcludingVAndE($userId)
+                ?? $repositoryReappro->findOldestByStatusAcold($userId, $username);
+                
+
+            if ($demandeCold) {
+                return $this->render('reappro/index.html.twig', [
+                    'results' => [$demandeCold]
+                ]);
+            }
+   
+        
+    // Nouvelle logique : recherche dans Blencours et Suividupreparationdujour
+    $blEnCours = $em->getRepository(Blencours::class)
+        ->findBy(['statut' => 'En cours']);
+
+       
+
+
+    // Variable pour indiquer si une demande a été créée
+    $demandesCreees = false;
+
+    if($blEnCours){
+        foreach ($blEnCours as $bl) {
+            $numBl = $bl->getNumBl();
+            $Pickingnok = 0;
+            $Pickingok = 0;
+
+           
+           
+            $suiviPreparations = $em->getRepository(Suividupreparationdujour::class)
+                ->findByNoBLWithSpecificAddresses($numBl);
+               
+                
+            foreach ($suiviPreparations as $suivi) {
+                // Vérifiez d'abord la valeur exacte du code produit
+                $codeproduit = trim($suivi->getCodeProduit());
+                $zone = trim($suivi->getZone());
+                $adresse = trim($suivi->getAdresse());
+                $resultatAdresse = $zone . ":" . $adresse;
+
+                
+                //var_dump($suiviPreparations);
+            
+
+                // Verfifier si la demande(adresse) n'existe pas dans les demande de reappro 
+                $demandeExistante = $em->getRepository(DemandeReappro::class)
+                    ->findOneBy(['Adresse' => $resultatAdresse]);
+          
+                   
+                    
+                if(empty($demandeExistante)){
+                         
+                    // Chercher si la ref a un piking ou non
+                    if($Pickingok == 0 && $Pickingnok == 0){
+                        // Verfifier si Picking Ok
+                        
+                        $SonPiking = 1;
+                        $listeProduit = $em->getRepository('App\Entity\ListeProduits')
+                            ->createQueryBuilder('p')
+                            ->where('p.ref = :ref')
+                            ->andWhere('p.pinkg IS NOT NULL')
+                            ->andWhere('p.pinkg <> :empty')
+                            ->setParameter('ref', $codeproduit)
+                            ->setParameter('empty', '')
+                            ->getQuery()
+                            ->getOneOrNullResult();
+                            
+                        if($listeProduit){
+                            // Créer une nouvelle demande de réappro
+                            $demandeReappro = new DemandeReappro();
+                            $demandeReappro->setIdReappro(9999999);
+                            $demandeReappro->setIdPreparateur(500100);
+                            $demandeReappro->setAdresse($resultatAdresse);
+                            $demandeReappro->setStatut('A');
+                            $demandeReappro->setCreateAt(new \DateTimeImmutable());
+                            $demandeReappro->setUsernamePrep('Cold');
+                            $demandeReappro->setSonPicking($SonPiking);
+                            $em->persist($demandeReappro);
+                            $em->flush(); 
+                            
+                            $demandesCreees = true;
+                        }
+                    }
+                    
+                    if($Pickingok == 1 && $Pickingnok == 1){
+                        $listeProduit = $em->getRepository('App\Entity\ListeProduits')
+                            ->createQueryBuilder('p')
+                            ->where('p.ref = :ref')
+                            ->setParameter('ref', $codeproduit)
+                            ->getQuery()
+                            ->getOneOrNullResult();
+                            
+                        // Ensuite, vous pouvez accéder à la valeur de pinkg, qu'elle soit null ou non
+                        $pickingValue = ($listeProduit) ? $listeProduit->getPinkg() : null;
+                        if($pickingValue){
+                            $SonPiking = 1;
+                        } else {
+                            $SonPiking = 0;
+                        }
+                       
+                        // Créer une nouvelle demande de réappro
+                        $demandeReappro = new DemandeReappro();
+                        $demandeReappro->setIdReappro(9999999);
+                        $demandeReappro->setIdPreparateur(500100);
+                        $demandeReappro->setAdresse($resultatAdresse);
+                        $demandeReappro->setStatut('A');
+                        $demandeReappro->setCreateAt(new \DateTimeImmutable());
+                        $demandeReappro->setUsernamePrep('Cold');
+                        $demandeReappro->setSonPicking($SonPiking);
+                        $em->persist($demandeReappro);
+                        $em->flush();
+                        
+                        $demandesCreees = true;
+                    }
+                }
+            }
+            
+        }
+   
+        // Une fois que tous les BLs ont été traités, on cherche les demandes
+       // if ($demandesCreees) {
+            
+            // Recherche selon différents critères (dans l'ordre de priorité)
+            $demandeCold = $repositoryReappro->findOldestByStatusExcludingVAndEBYIDcaristecold($userId)
+                ?? $repositoryReappro->findOldestByStatusExcludingVAndE($userId)
+                ?? $repositoryReappro->findOldestByStatusAcold($userId, $username);
+                
+
+            if ($demandeCold) {
+                return $this->render('reappro/index.html.twig', [
+                    'results' => [$demandeCold]
+                ]);
+            }
+       // }
+    }
+    
+    // Si aucune donnée n'est trouvée
+    $this->addFlash('notice', 'Aucune palette');
+    return $this->render('reappro/index.html.twig', [
+        'results' => []
+    ]);
+}
+    
+    #[Route('/validation/{id}', name: 'edit_validation', requirements: ['id' => '\d+'])]
+    public function editReappro(
+        Request $request,
+        DemandeReappro $listeDemande,
+        EntityManagerInterface $em
+    ): Response {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+       
+        $user = $this->getUser();
+        if (!$user) {
+            throw $this->createAccessDeniedException('User not authenticated.');
+        }
+        
+        $form = $this->createForm(ValidationType::class, $listeDemande);
+        $form->handleRequest($request);
+        
+        // Récupération et normalisation des adresses
+        $adresseForm = $form->get('adresse')->getData();
+        $adresseConvertie = preg_replace('/^10/', 'C', $adresseForm ?? '');
+        $adresseDistParam = $request->query->get('adresseDist', '');
+        $adresseDistConvertie = preg_replace('/^10/', 'C', $adresseDistParam);
+        
+        // Vérification que l'adresse de distribution ne commence pas déjà par 'C'
+        if (strpos($adresseDistParam, 'C') === 0) {
+            $this->addFlash('error', 'L\'adresse est incorrecte');
+            return $this->redirectToRoute('app_reappro');
+        }
+        
+        // Vérification de la correspondance des adresses
+        if ($adresseConvertie !== $adresseDistConvertie) {
+            $this->addFlash('error', 'L\'adresse est incorrecte');
+            return $this->redirectToRoute('app_reappro');
+        }
+        
+        if ($form->isSubmitted() && $form->isValid()) {
+            $listeDemande->setIdCariste($user->getId());
+            $listeDemande->setUsernameCariste($user->getUsername());
+            $listeDemande->setSonPicking('NON');
+            $listeDemande->setUpdateAt(new \DateTimeImmutable());
+            $listeDemande->setStatut('V');
+            
+            $em->flush();
+            
+            $this->addFlash('success', 'La demande est bien envoyée');
+            return $this->redirectToRoute('app_reappro');
+        }
+        
+        return $this->render('reappro/Validation.html.twig', [
+            'form' => $form
         ]);
     }
     
-
-    #[Route('/validation/{id}', name: 'edit_validation', requirements:['id' => '\d+'])]
-    public function editReappro(request $request,int $id, EntityManagerInterface $em, UserPasswordHasherInterface $hasher, DemandeReapproRepository $RepositoryReappro, DemandeReappro $listeDemande): Response
-    {
-        $this->denyAccessUnlessGranted('ROLE_USER');
-       
-        //recupurer id_user
-         // Récupérer l'objet utilisateur
-         $user = $this->getUser();
-         // Vérifier si l'utilisateur est connecté
-         if ($user) {
-             // Extraire les données de l'objet utilisateur
-             $userId= $user->getId();         // Integer
-             $username = $user->getUsername(); // String
-             $email = $user->getEmail();       // String
-             // Afficher les données (par exemple, pour le débogage)
-         } else {
-             // Gestion des cas où l'utilisateur n'est pas connecté
-             return new Response('User not authenticated.');
-         }
-       $form = $this->createForm(ValidationType::class, $listeDemande);
-        $form->handleRequest($request);
-        $adresseDist = $request->request->get('adresse_dist');
-        $adresseConvertie = preg_replace('/^10/', 'C', $form->get('adresse')->getData());
-        $adressereçu = $request->query->get('adresseDist'); 
-        $adresseDist = preg_replace('/^10/', 'C', $request->query->get('adresseDist'));
-        if(strpos($adressereçu, 'C') !== 0){
-            if ( ($adresseConvertie == $adresseDist) ) {
-                
-                if($form->isSubmitted() && $form->isValid()){
-                
-                    //$validation->setCreateAt(new \DateTimeImmutable())
-                    $listeDemande->setIdReappro(25);
-                    $listeDemande->setIdCariste($userId);
-                    $listeDemande->setUsernameCariste($username);
-                    $listeDemande->setSonPicking('NON');
-                    $listeDemande->setUpdateAt(new \DateTimeImmutable());
-                    ///$listeDemande->setAdresse('152-25-36');
-                    $listeDemande->setStatut('V');
-                    $em->persist($listeDemande);
-                    $em->flush();
-                    $this->addFlash('success','La demande est bien envoyé');
-                    return $this->redirectToRoute('app_reappro');
-                }
-            return $this->render('reappro/Validation.html.twig', [
-                'form' => $form
-        
-               ]);
-            }else{
-                $this->addFlash('error', 'L\'adresse est incorrecte');
-                return $this->redirectToRoute('app_reappro');
-            }
-        }else{
-            $this->addFlash('error', 'L\'adresse est incorrecte');
-                return $this->redirectToRoute('app_reappro');
-        }
-
-           
-       
-      
-       
-    }
     #[Route('/add-rea', name: 'add_reappro')]
-    public function AddReappro(Request $request, EntityManagerInterface $em, DemandeReappro $Demande): Response
-    {
+    public function addReappro(
+        Request $request,
+        EntityManagerInterface $em,
+        DemandeReapproRepository $repositoryReappro
+    ): Response {
         $this->denyAccessUnlessGranted('ROLE_USER');
         
         $user = $this->getUser();
         if (!$user) {
-            return new Response('User not authenticated.');
+            throw $this->createAccessDeniedException('User not authenticated.');
         }
-        $userId = $user->getId();
-        $username = $user->getUsername();
-    
-        //si la requette request vien du button valider 
-
-        $form = $this->createForm(ValidationType::class, $Demande);
+        
+        $demande = new DemandeReappro();
+        $form = $this->createForm(ValidationType::class, $demande);
         $form->handleRequest($request);
-        $adresseConvertie = preg_replace('/^10/', 'C', $form->get('adresse')->getData());
-        // Vérifier l'existence d'une demande pour cette adresse
-        $existingDemande = $em->getRepository(DemandeReappro::class)
-        ->findExistingDemandeByAdresse($adresseConvertie);
-       
-    
-        if ($request->request->has('valider') || $adresseConvertie ==''  ) {          
-            $this->addFlash(
-                'warning',
-                sprintf(
-                    'Palette est déjà en cours ou la demande est vide',
-                    $existingDemande->getAdresse(),
-                    $existingDemande->getStatut()
-                )
-            );
-            return $this->render('reappro/createReappro.html.twig', [
-                'form' => $form
-            ]);
-           
-        }else{
-                    
-                    if ($form->isSubmitted() && $form->isValid()) {
-                    //convertire 
-                    $adresseConvertie = preg_replace('/^10/', 'C', $form->get('adresse')->getData());
-                    //Si la demande est vide, ne  rien faire 
-                    if ($adresseConvertie =='') {
-                      
-                    }
-                    
-                    if ($existingDemande) {
-                        $this->addFlash(
-                            'warning',
-                            sprintf(
-                                'Palette est déjà en cours de déplacement pour l\'adresse %s',
-                                $existingDemande->getAdresse(),
-                                $existingDemande->getStatut()
-                            )
-                        );
-                        return $this->render('reappro/createReappro.html.twig', [
-                            'form' => $form
-                        ]);
-                    }
-                    $Demande->setIdReappro(25);
-                    $Demande->setidPreparateur($userId);
-                    $Demande->setUsernamePrep($username);
-                    $Demande->setSonPicking('NON');
-                    $Demande->setStatut('A');
-                    $Demande->setCreateAt(new \DateTimeImmutable());
-                    $Demande->setAdresse($adresseConvertie);
-                    $em->persist($Demande);
-                    $em->flush();
+        
+        if ($form->isSubmitted() && $form->isValid()) {
+            $adresseForm = $form->get('adresse')->getData();
+            $adresseConvertie = preg_replace('/^10/', 'C', $adresseForm ?? '');
             
-                    $this->addFlash('success', 'La demande est bien envoyée');
-                    return $this->redirectToRoute('add_reappro');
+            // Si l'adresse est vide
+            if (empty($adresseConvertie)) {
+                $this->addFlash('warning', 'La demande est vide');
+                return $this->render('reappro/createReappro.html.twig', [
+                    'form' => $form
+                ]);
+            }
+            
+            // Vérifier si une demande existe déjà pour cette adresse
+            $existingDemande = $repositoryReappro->findExistingDemandeByAdresse($adresseConvertie);
+            
+
+          // dd($existingDemande);
+            
+       
+
+
+      
+           
+            
+            if ($existingDemande) {
+
+                   $nameprep =$existingDemande->getUsernamePrep();
+        $idreapp = $existingDemande->getId();
+            // Récupérer l'objet par son ID (65 dans votre exemple)
+            $demande = $em->getRepository(DemandeReappro::class)->find($idreapp);
+
+            // Vérifier si l'objet existe et si le UsernamePrep est "Cold"
+            if ($demande && $demande->getUsernamePrep() === 'Cold') {
+                // Mettre à jour le nom d'utilisateur
+                $demande->setUsernamePrep($user->getUsername().'//Cold');
+                $demande->setCreateAt(new \DateTimeImmutable());
+                $em->persist($demande);
+                $em->flush();
+            }
+            
+               
+               
+                $this->addFlash(
+                    'warning',
+                    sprintf(
+                        'Palette est déjà en cours de déplacement pour l\'adresse %s (statut: %s)',
+                        $existingDemande->getAdresse(),
+                        $existingDemande->getStatut()
+                    )
+                );
+                return $this->render('reappro/createReappro.html.twig', [
+                    'form' => $form
+                ]);
+            }
+            
+            // Création de la nouvelle demande
+            $demande->setIdReappro(mt_rand(10000, 99999)); // Génération d'un ID aléatoire
+            $demande->setIdPreparateur($user->getId());
+            $demande->setUsernamePrep($user->getUsername());
+            $demande->setSonPicking('NON');
+            $demande->setStatut('A');
+            $demande->setCreateAt(new \DateTimeImmutable());
+            $demande->setAdresse($adresseConvertie);
+            
+            $em->persist($demande);
+            $em->flush();
+            
+            $this->addFlash('success', 'La demande est bien envoyée');
+            
+            // Redirection vers la création d'une nouvelle demande avec un formulaire vide
+            return $this->redirectToRoute('add_reappro');
         }
         
-
-            }
-
-       
-
-       
-        
-
         return $this->render('reappro/createReappro.html.twig', [
             'form' => $form
         ]);
     }
+    
     #[Route('/adduser', name: 'adduser_reappro')]
-    public function adduser(Request $request, EntityManagerInterface $em, UserPasswordHasherInterface $hasher, DemandeReapproRepository $repositoryReappro): Response
-    {
+    public function adduser(
+        EntityManagerInterface $em,
+        UserPasswordHasherInterface $hasher
+    ): Response {
         $user = new User();
         $user->setEmail('emmanuelc@doe.fr')
             ->setUsername('emmanuelc')
-            ->setPassword($hasher->hashPassword($user,'1021'))
-            ->setRoles([]);
+            ->setPassword($hasher->hashPassword($user, '1021'))
+            ->setRoles(['ROLE_USER']);
+            
         $em->persist($user);
         $em->flush();
-        return $this-render('reappro/index.html.twig');
-
+        
+        $this->addFlash('success', 'Utilisateur créé avec succès');
+        
+        return $this->redirectToRoute('app_reappro');
     }
-    
 }

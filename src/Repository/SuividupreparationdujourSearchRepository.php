@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Suividupreparationdujour;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\Query;
 
 class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
 {
@@ -17,7 +18,6 @@ class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('s');
 
-        
         if (isset($criteria['suivi_preparation_search']) && is_array($criteria['suivi_preparation_search'])) {
             $searchCriteria = $criteria['suivi_preparation_search'];
          
@@ -26,12 +26,13 @@ class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
             $client = $searchCriteria['client'] ?? null;
             $preparateur = $searchCriteria['preparateur'] ?? null;
             $updatedAt = $searchCriteria['updatedAt'] ?? null;
-            $nbArt = $searchCriteria['nb_art'] ?? null;
+            $nbArt = $searchCriteria['nbArt'] ?? null; // Correction: renommé nb_art -> nbArt pour être cohérent avec le formulaire
             $noBl = $searchCriteria['noBl'] ?? null;
             $noCmd = $searchCriteria['noCmd'] ?? null;
             $codeProduit = $searchCriteria['codeProduit'] ?? null;   
             $dateLiv = $searchCriteria['dateliv'] ?? null;
 
+            // Ajout de filtres incrementaux selon les critères fournis
             if (!empty($codeClient)) {
                 $qb->andWhere('s.Code_Client LIKE :codeClient')
                    ->setParameter('codeClient', '%' . $codeClient . '%');
@@ -47,9 +48,10 @@ class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
                    ->setParameter('preparateur', '%' . $preparateur . '%');
             }
 
+            // Correction: filtre nbArt utilisant le champ correct
             if (!empty($nbArt)) {
-                $qb->andWhere('s.Preparateur LIKE :preparateur')
-                   ->setParameter('preparateur', '%' . $preparateur . '%');
+                $qb->andWhere('s.nbArt = :nbArt')
+                   ->setParameter('nbArt', $nbArt);
             }
 
             if (!empty($updatedAt)) {
@@ -68,20 +70,18 @@ class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
                 }
             }
             
-
             if (!empty($dateLiv)) {
                 $date = \DateTime::createFromFormat('Y-m-d', $dateLiv, new \DateTimeZone('Europe/Paris'));
             
                 if ($date instanceof \DateTime) {
                     $startOfDay = (clone $date)->setTime(0, 0, 0);
-                    $endOfDay = (clone $date)->modify('23:59:59');
+                    $endOfDay = (clone $date)->setTime(23, 59, 59);
             
                     $qb->andWhere('s.Date_liv BETWEEN :startDayLiv AND :endDayLiv')
                        ->setParameter('startDayLiv', $startOfDay->format('Y-m-d H:i:s'))
                        ->setParameter('endDayLiv', $endOfDay->format('Y-m-d H:i:s'));
                 }
             }
-            
             
             if (!empty($noBl)) {
                 $qb->andWhere('s.No_Bl LIKE :noBl')
@@ -92,9 +92,8 @@ class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
                 // Extraire les 8 derniers caractères
                 $noCmd = substr($noCmd, -8); 
 
-                // Requête avec LIKE
                 $qb->andWhere('s.No_Cmd LIKE :noCmd')
-                ->setParameter('noCmd', '%' . $noCmd);
+                   ->setParameter('noCmd', '%' . $noCmd);
             }
 
             if (!empty($codeProduit)) {
@@ -102,27 +101,25 @@ class SuividupreparationdujourSearchRepository extends ServiceEntityRepository
                 $codesProduit = array_filter($codesProduit);
                 
                 if (!empty($codesProduit)) {
-                    // Sous-requête pour trouver les BL qui contiennent tous les produits
-                    $subQb = $this->createQueryBuilder('sub')
-                        ->select('DISTINCT sub.No_Bl')
-                        ->andWhere('sub.CodeProduit IN (:codes)')
-                        ->setParameter('codes', $codesProduit)
-                        ->groupBy('sub.No_Bl')
-                        ->having('COUNT(DISTINCT sub.CodeProduit) >= :productCount')
-                        ->setParameter('productCount', count($codesProduit));
-            
-                    // Requête principale : BL trouvés ET seulement les produits recherchés
-                    $qb->andWhere('s.No_Bl IN (' . $subQb->getDQL() . ')')
-                       ->andWhere('s.CodeProduit IN (:codes_main)') // Changé le nom du paramètre
-                       ->setParameter('codes_main', $codesProduit)
-                       ->setParameter('codes', $codesProduit)
-                       ->setParameter('productCount', count($codesProduit));
+                    // Version simplifiée et optimisée pour éviter les problèmes de mémoire
+                    if (count($codesProduit) === 1) {
+                        // Si un seul code produit, requête simple
+                        $qb->andWhere('s.CodeProduit = :codeProduit')
+                           ->setParameter('codeProduit', $codesProduit[0]);
+                    } else {
+                        // Si plusieurs codes, utiliser une jointure au lieu d'une sous-requête
+                        $qb->andWhere('s.CodeProduit IN (:codesProduit)')
+                           ->setParameter('codesProduit', $codesProduit);
+                        
+                        // Ajouter une annotation pour limiter les résultats
+                        $qb->setMaxResults(1000); // Limite raisonnable pour éviter épuisement mémoire
+                    }
                 }
             }
         }
 
+        // Optimisation importante: retourne la Query, pas le Result
         return $qb->orderBy('s.updatedAt', 'DESC')
-                 ->getQuery()
-                 ->getResult();
+                 ->getQuery();
     }
 }

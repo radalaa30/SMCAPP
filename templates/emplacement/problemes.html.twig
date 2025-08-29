@@ -1,0 +1,605 @@
+{# emplacement/problemes.html.twig #}
+
+{% extends 'base2.html.twig' %}
+
+{% block title %}Historique des problèmes{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .table-problemes {
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .badge-nouveau {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .badge-en-cours {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .badge-resolu {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-resoudre {
+            margin-right: 5px;
+        }
+        
+        .filters {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        
+        .retour-btn {
+            margin-bottom: 20px;
+        }
+        
+        .commentaire-zone {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+        
+        .info-palette {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1050;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 50%;
+            border-radius: 8px;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .stats-box {
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-right: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+        
+        .stat-nouveau {
+            background-color: #ffc107;
+            color: black;
+        }
+        
+        .stat-encours {
+            background-color: #17a2b8;
+        }
+        
+        .stat-resolu {
+            background-color: #28a745;
+        }
+        
+        .sort-icon {
+            cursor: pointer;
+            margin-left: 5px;
+            opacity: 0.7;
+        }
+        
+        .sort-icon:hover {
+            opacity: 1;
+        }
+        
+        .sort-icon.active {
+            color: #007bff;
+            opacity: 1;
+        }
+        
+        .filter-row {
+            background-color: #e9ecef;
+            font-weight: 600;
+        }
+        
+        .filter-input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-weight: normal;
+        }
+        
+        .filter-date-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .date-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-bottom: 2px;
+        }
+    </style>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variables pour le tri
+            let currentSort = {
+                column: '',
+                direction: 'asc'
+            };
+            
+            // Fonction de tri
+            function sortTable(column) {
+                const tbody = document.querySelector('tbody');
+                const rows = Array.from(tbody.querySelectorAll('tr:not(.filter-row)'));
+                
+                // Inverser la direction si on clique sur la même colonne
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+                
+                // Mettre à jour les icônes de tri
+                document.querySelectorAll('.sort-icon').forEach(icon => {
+                    icon.classList.remove('active');
+                    icon.classList.remove('fa-sort-up', 'fa-sort-down');
+                    icon.classList.add('fa-sort');
+                });
+                
+                const currentIcon = document.querySelector(`.sort-icon[data-column="${column}"]`);
+                currentIcon.classList.add('active');
+                currentIcon.classList.remove('fa-sort');
+                currentIcon.classList.add(currentSort.direction === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+                
+                // Trier les lignes
+                rows.sort((a, b) => {
+                    let aValue, bValue;
+                    
+                    switch(column) {
+                        case 'date':
+                            aValue = new Date(a.querySelector('td:nth-child(1)').dataset.date);
+                            bValue = new Date(b.querySelector('td:nth-child(1)').dataset.date);
+                            break;
+                        case 'emplacement':
+                            aValue = a.querySelector('td:nth-child(2)').textContent.trim();
+                            bValue = b.querySelector('td:nth-child(2)').textContent.trim();
+                            break;
+                        case 'palette':
+                            aValue = a.querySelector('td:nth-child(3)').textContent.trim();
+                            bValue = b.querySelector('td:nth-child(3)').textContent.trim();
+                            break;
+                        case 'produit':
+                            aValue = a.querySelector('td:nth-child(4)').textContent.trim();
+                            bValue = b.querySelector('td:nth-child(4)').textContent.trim();
+                            break;
+                        case 'statut':
+                            aValue = a.dataset.statut;
+                            bValue = b.dataset.statut;
+                            break;
+                    }
+                    
+                    if (aValue < bValue) return currentSort.direction === 'asc' ? -1 : 1;
+                    if (aValue > bValue) return currentSort.direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                
+                // Réafficher les lignes triées
+                rows.forEach(row => tbody.appendChild(row));
+            }
+            
+            // Ajouter les événements de clic pour le tri
+            document.querySelectorAll('.sort-icon').forEach(icon => {
+                icon.addEventListener('click', () => {
+                    sortTable(icon.dataset.column);
+                });
+            });
+            
+            // Fonction de filtrage
+            function filterTable() {
+                const filters = {
+                    dateDebut: document.getElementById('filterDateDebut').value,
+                    dateFin: document.getElementById('filterDateFin').value,
+                    emplacement: document.getElementById('filterEmplacement').value.toLowerCase(),
+                    palette: document.getElementById('filterPalette').value.toLowerCase(),
+                    produit: document.getElementById('filterProduit').value.toLowerCase(),
+                    statut: document.getElementById('filterStatut').value
+                };
+                
+                const rows = document.querySelectorAll('tbody tr:not(.filter-row)');
+                
+                rows.forEach(row => {
+                    const date = new Date(row.querySelector('td:nth-child(1)').dataset.date);
+                    const emplacement = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+                    const palette = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+                    const produit = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
+                    const statut = row.dataset.statut;
+                    
+                    let showRow = true;
+                    
+                    // Filtrage par date
+                    if (filters.dateDebut && date < new Date(filters.dateDebut)) {
+                        showRow = false;
+                    }
+                    if (filters.dateFin && date > new Date(filters.dateFin + 'T23:59:59')) {
+                        showRow = false;
+                    }
+                    
+                    // Autres filtres
+                    if (showRow) {
+                        showRow = 
+                            emplacement.includes(filters.emplacement) &&
+                            palette.includes(filters.palette) &&
+                            produit.includes(filters.produit) &&
+                            (filters.statut === '' || statut === filters.statut);
+                    }
+                    
+                    row.style.display = showRow ? '' : 'none';
+                });
+            }
+            
+            // Ajouter les événements pour le filtrage
+            document.querySelectorAll('.filter-input').forEach(input => {
+                input.addEventListener('input', filterTable);
+                input.addEventListener('change', filterTable);
+            });
+            
+            // Bouton pour réinitialiser les filtres
+            document.getElementById('resetFilters').addEventListener('click', function() {
+                document.getElementById('filterDateDebut').value = '';
+                document.getElementById('filterDateFin').value = '';
+                document.getElementById('filterEmplacement').value = '';
+                document.getElementById('filterPalette').value = '';
+                document.getElementById('filterProduit').value = '';
+                document.getElementById('filterStatut').value = '';
+                filterTable();
+            });
+            
+            // Gestion des modals
+            const commentModal = document.getElementById('commentModal');
+            const resolveModal = document.getElementById('resolveModal');
+            let currentProblemeId = null;
+            
+            // Boutons pour ouvrir les modals
+            document.querySelectorAll('.btn-commenter').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    currentProblemeId = this.dataset.id;
+                    document.getElementById('currentCommentaire').value = this.dataset.commentaire || '';
+                    commentModal.style.display = 'block';
+                });
+            });
+            
+            document.querySelectorAll('.btn-resoudre').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    currentProblemeId = this.dataset.id;
+                    resolveModal.style.display = 'block';
+                });
+            });
+            
+            // Fermer les modals
+            document.querySelectorAll('.close').forEach(function(span) {
+                span.addEventListener('click', function() {
+                    commentModal.style.display = 'none';
+                    resolveModal.style.display = 'none';
+                });
+            });
+            
+            window.onclick = function(event) {
+                if (event.target == commentModal) {
+                    commentModal.style.display = 'none';
+                }
+                if (event.target == resolveModal) {
+                    resolveModal.style.display = 'none';
+                }
+            }
+            
+            // Soumission du commentaire
+            document.getElementById('commentForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const commentaire = document.getElementById('currentCommentaire').value;
+                
+                fetch(`/probleme/${currentProblemeId}/commenter`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        commentaire: commentaire
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Erreur lors de l\'ajout du commentaire');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Erreur lors de l\'ajout du commentaire');
+                });
+            });
+            
+            // Résolution du problème
+            document.getElementById('resolveForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const commentaire = document.getElementById('resolveCommentaire').value;
+                
+                fetch(`/probleme/${currentProblemeId}/resoudre`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        commentaire: commentaire
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Erreur lors de la résolution');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Erreur lors de la résolution');
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% block body %}
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <a href="{{ path('app_emplacements') }}" class="btn btn-secondary retour-btn">
+                    <i class="fas fa-arrow-left"></i> Retour aux emplacements
+                </a>
+                
+                <h1 class="my-4">Historique des problèmes</h1>
+                
+                <!-- Statistiques -->
+                <div class="stats-box">
+                    {% set nouveaux = 0 %}
+                    {% set encours = 0 %}
+                    {% set resolus = 0 %}
+                    
+                    {% for stat in stats %}
+                        {% if stat.statut == 'nouveau' %}
+                            {% set nouveaux = stat.count %}
+                        {% elseif stat.statut == 'en_cours' %}
+                            {% set encours = stat.count %}
+                        {% elseif stat.statut == 'resolu' %}
+                            {% set resolus = stat.count %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <div class="stat-card stat-nouveau">
+                        <strong>{{ nouveaux }}</strong> Nouveaux
+                    </div>
+                    <div class="stat-card stat-encours">
+                        <strong>{{ encours }}</strong> En cours
+                    </div>
+                    <div class="stat-card stat-resolu">
+                        <strong>{{ resolus }}</strong> Résolus
+                    </div>
+                </div>
+                
+                <!-- Bouton de réinitialisation des filtres -->
+                <div class="mb-3">
+                    <button id="resetFilters" class="btn btn-warning">
+                        <i class="fas fa-undo"></i> Réinitialiser les filtres
+                    </button>
+                </div>
+                
+                <!-- Table des problèmes -->
+                <div class="table-responsive">
+                    <table class="table table-striped table-problemes">
+                        <thead>
+                            <tr>
+                                <th>
+                                    Date
+                                    <i class="fas fa-sort sort-icon" data-column="date"></i>
+                                </th>
+                                <th>
+                                    Emplacement
+                                    <i class="fas fa-sort sort-icon" data-column="emplacement"></i>
+                                </th>
+                                <th>
+                                    Palette
+                                    <i class="fas fa-sort sort-icon" data-column="palette"></i>
+                                </th>
+                                <th>
+                                    Produit
+                                    <i class="fas fa-sort sort-icon" data-column="produit"></i>
+                                </th>
+                                <th>Description</th>
+                                <th>Commentaire</th>
+                                <th>
+                                    Statut
+                                    <i class="fas fa-sort sort-icon" data-column="statut"></i>
+                                </th>
+                                <th>Actions</th>
+                            </tr>
+                            <!-- Ligne de filtres -->
+                            <tr class="filter-row">
+                                <td>
+                                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                                        <input type="date" id="filterDateDebut" class="filter-input" title="Date début">
+                                        <input type="date" id="filterDateFin" class="filter-input" title="Date fin">
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" id="filterEmplacement" class="filter-input" placeholder="Filtrer...">
+                                </td>
+                                <td>
+                                    <input type="text" id="filterPalette" class="filter-input" placeholder="Filtrer...">
+                                </td>
+                                <td>
+                                    <input type="text" id="filterProduit" class="filter-input" placeholder="Filtrer...">
+                                </td>
+                                <td></td>
+                                <td></td>
+                                <td>
+                                    <select id="filterStatut" class="filter-input">
+                                        <option value="">Tous</option>
+                                        <option value="nouveau">Nouveau</option>
+                                        <option value="en_cours">En cours</option>
+                                        <option value="resolu">Résolu</option>
+                                    </select>
+                                </td>
+                                <td></td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for probleme in problemes %}
+                                <tr data-statut="{{ probleme.statut }}">
+                                    <td data-date="{{ probleme.dateSignalement|date('Y-m-d H:i:s') }}">
+                                        {{ probleme.dateSignalement|date('d/m/Y H:i') }}
+                                    </td>
+                                    <td>{{ probleme.emplacement }}</td>
+                                    <td>
+                                        {{ probleme.nopal }}
+                                        {% if probleme.infosPalette %}
+                                            <div class="info-palette">
+                                                {% if probleme.infosPalette.nopalinfo %}
+                                                    Info: {{ probleme.infosPalette.nopalinfo }}<br>
+                                                {% endif %}
+                                                {% if probleme.infosPalette.dateentree %}
+                                                    Entrée: {{ probleme.infosPalette.dateentree }}<br>
+                                                {% endif %}
+                                                Zone: {{ probleme.zone }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ probleme.codeprod }}<br>
+                                        <small>{{ probleme.dsignprod }}</small>
+                                        <div class="info-palette">
+                                            UV: {{ probleme.uvtotal }} | UC: {{ probleme.ucdispo }} | UR: {{ probleme.urdispo }}
+                                            {% if probleme.urbloquee > 0 %}
+                                                <br><span class="text-danger">UR bloquées: {{ probleme.urbloquee }}</span>
+                                            {% endif %}
+                                            {% if probleme.uvensortie > 0 %}
+                                                <br><span class="text-info">UV en sortie: {{ probleme.uvensortie }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>{{ probleme.description }}</td>
+                                    <td>
+                                        {% if probleme.commentaire %}
+                                            <div class="commentaire-zone">
+                                                {{ probleme.commentaire }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if probleme.statut == 'nouveau' %}
+                                            <span class="badge badge-nouveau">Nouveau</span>
+                                        {% elseif probleme.statut == 'en_cours' %}
+                                            <span class="badge badge-en-cours">En cours</span>
+                                        {% elseif probleme.statut == 'resolu' %}
+                                            <span class="badge badge-resolu">Résolu</span>
+                                            {% if probleme.dateResolution %}
+                                                <br><small>{{ probleme.dateResolution|date('d/m/Y') }}</small>
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if probleme.statut != 'resolu' %}
+                                            <button class="btn btn-sm btn-info btn-commenter" 
+                                                    data-id="{{ probleme.id }}"
+                                                    data-commentaire="{{ probleme.commentaire }}">
+                                                <i class="fas fa-comment"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-success btn-resoudre" 
+                                                    data-id="{{ probleme.id }}">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="8" class="text-center">Aucun problème signalé</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour commenter -->
+    <div id="commentModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Ajouter/Modifier un commentaire</h3>
+            <form id="commentForm">
+                <div class="form-group">
+                    <label for="currentCommentaire">Commentaire :</label>
+                    <textarea id="currentCommentaire" class="form-control" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Enregistrer</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal pour résoudre -->
+    <div id="resolveModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>Résoudre le problème</h3>
+            <form id="resolveForm">
+                <div class="form-group">
+                    <label for="resolveCommentaire">Commentaire de résolution (optionnel) :</label>
+                    <textarea id="resolveCommentaire" class="form-control" rows="4"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success mt-3">Marquer comme résolu</button>
+            </form>
+        </div>
+    </div>
+{% endblock %}

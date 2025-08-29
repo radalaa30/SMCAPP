@@ -4,7 +4,7 @@
 
 {% block body %}
     <div class="container mt-4">
-        <h1>Recherche d’historique des préparations</h1>
+        <h1>Recherche d'historique des préparations</h1>
 
         {{ form_start(form, {'attr': {'class': 'mb-4'}}) }}
             <div class="row">
@@ -17,7 +17,7 @@
                 <div class="col-md-3">{{ form_row(form.noBl) }}</div>
                 <div class="col-md-3">{{ form_row(form.noCmd) }}</div>
                 <div class="col-md-3">{{ form_row(form.codeProduit) }}</div>
-                <td>{{ form_row(form.dateliv) }}</td>
+                <div class="col-md-3">{{ form_row(form.dateliv) }}</div>
                 <div class="col-md-3">
                     <button type="submit" class="btn btn-primary">Rechercher</button>
                 </div>
@@ -27,41 +27,45 @@
         <div class="table-responsive">
             <table class="table table-bordered table-hover table-striped table-sm">
                 <thead>
-                    <tr>
+                    <tr><th>Préparateur</th>
+                    <th>Adresse</th>
+                     <th>Date MAJ</th>
+                     <th>N° BL</th>
                         <th>Code Client</th>
-                        <th>Date de Livraison</th>
                         <th>Client</th>
-                        <th>Préparateur</th>
-                        <th>Date MAJ</th>
-                        <th>N° BL</th>
                         <th>N° Commande</th>
                         <th>Code Produit</th>
+                        <th>N° Palette</th>
                         <th>Nbr Article</th>
-                        <th>Adresse</th>
-                    
+                         <th>Date de Livraison</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for suivi in pagination %}
                         <tr>
-                            <td>{{ suivi.codeClient }}</td>
-                            <td>{{ suivi.dateliv|date('d/m/Y') }}</td>
-                            <td>{{ suivi.client }}</td>
                             <td>{{ suivi.preparateur }}</td>
-                            <td>{% if suivi.updatedAt %}{{ suivi.updatedAt|date('d/m/Y H:i') }}{% endif %}</td>
-                            <td>{{ suivi.noBl }}</td>
+                            <td>{{ suivi.zone }}:{{ suivi.adresse }}</td>
+                             <td>{% if suivi.updatedAt %}{{ suivi.updatedAt|date('d/m/Y') }}{% endif %}</td>
+                             <td>{{ suivi.noBl }}</td>
+                            <td>{{ suivi.codeClient }}</td>
+                           
+                            <td>{{ suivi.client }}</td>
+                           
+                           
+                            
                             <td>{{ suivi.noCmd }}</td>
                             <td>{{ suivi.codeProduit }}</td>
-                             <td>{{ suivi.nbArt }}</td>
-                            <td>{{ suivi.zone }}:{{ suivi.adresse }}</td>
-                              
+                            <td>{{ suivi.noPal|replace({' ': '', ',': ''}) }}</td>
+                            <td>{{ suivi.nbArt }}</td>
+                             <td>{{ suivi.dateliv|date('d/m/Y') }}</td>
+                            
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <div class="navigation">
+        <div class="navigation pagination-wrapper">
             {{ knp_pagination_render(pagination) }}
         </div>
     </div>
@@ -83,8 +87,6 @@
     margin: 0 auto;
     padding: 2rem 1rem;
 }
-
-padding: 2rem 1rem;
 
 /* Style du titre */
 h1 {
@@ -167,40 +169,98 @@ form {
     transition: background-color 0.2s ease;
 }
 
-/* Pagination */
-.navigation {
+/* STYLES DE PAGINATION RENFORCÉS ET PLUS SPÉCIFIQUES */
+.pagination-wrapper {
     margin-top: 2rem;
+    text-align: center;
 }
 
-.pagination {
-    display: flex;
+.pagination-wrapper .pagination {
+    display: inline-flex;
     justify-content: center;
-    gap: 0.5rem;
-}
-
-.page-item {
+    align-items: center;
+    list-style: none;
     margin: 0;
+    padding: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
 
-.page-link {
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    color: var(--secondary-color);
-    background-color: white;
-    border: 1px solid var(--border-color);
+.pagination-wrapper .pagination li,
+.pagination-wrapper .pagination .page-item {
+    margin: 0;
+    display: inline-block;
+}
+
+.pagination-wrapper .pagination li a,
+.pagination-wrapper .pagination li span,
+.pagination-wrapper .pagination .page-item a,
+.pagination-wrapper .pagination .page-item span,
+.pagination-wrapper .pagination .page-link {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: 0 12px;
+    color: var(--secondary-color) !important;
+    background-color: white !important;
+    border: 1px solid var(--border-color) !important;
+    border-right: none !important;
+    font-size: 14px;
+    font-weight: 500;
     transition: all 0.2s ease;
+    text-decoration: none !important;
+    position: relative;
 }
 
-.page-link:hover {
-    background-color: var(--secondary-color);
-    color: white;
-    border-color: var(--secondary-color);
+.pagination-wrapper .pagination li:last-child a,
+.pagination-wrapper .pagination li:last-child span,
+.pagination-wrapper .pagination .page-item:last-child a,
+.pagination-wrapper .pagination .page-item:last-child span {
+    border-right: 1px solid var(--border-color) !important;
 }
 
-.page-item.active .page-link {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-color);
-    color: white;
+.pagination-wrapper .pagination li.active a,
+.pagination-wrapper .pagination li.active span,
+.pagination-wrapper .pagination li span.current,
+.pagination-wrapper .pagination .page-item.active .page-link,
+.pagination-wrapper .pagination .current {
+    background-color: var(--secondary-color) !important;
+    color: white !important;
+    border-color: var(--secondary-color) !important;
+    font-weight: 600;
+    z-index: 3;
+}
+
+.pagination-wrapper .pagination li a:hover,
+.pagination-wrapper .pagination li span:hover,
+.pagination-wrapper .pagination .page-item a:hover,
+.pagination-wrapper .pagination .page-link:hover {
+    background-color: var(--secondary-color) !important;
+    color: white !important;
+    border-color: var(--secondary-color) !important;
+    z-index: 2;
+}
+
+.pagination-wrapper .pagination li.disabled a,
+.pagination-wrapper .pagination li.disabled span,
+.pagination-wrapper .pagination .page-item.disabled .page-link,
+.pagination-wrapper .pagination .disabled {
+    color: #cbd5e0 !important;
+    pointer-events: none;
+    background-color: #f8fafc !important;
+    border-color: #edf2f7 !important;
+}
+
+/* Styles pour les flèches de pagination */
+.pagination-wrapper .pagination .prev a,
+.pagination-wrapper .pagination .next a,
+.pagination-wrapper .pagination li:first-child a,
+.pagination-wrapper .pagination li:last-child a {
+    font-weight: 600;
+    padding: 0 15px;
 }
 
 /* Responsive Design */
@@ -215,6 +275,15 @@ form {
     
     h1 {
         font-size: 1.5rem;
+    }
+    
+    .pagination-wrapper .pagination li a,
+    .pagination-wrapper .pagination li span,
+    .pagination-wrapper .pagination .page-link {
+        min-width: 36px;
+        height: 36px;
+        padding: 0 8px;
+        font-size: 13px;
     }
 }
     </style>

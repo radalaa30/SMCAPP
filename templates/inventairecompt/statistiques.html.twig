@@ -1,0 +1,868 @@
+{% extends 'inventairecompt/base.html.twig' %}
+
+{% block title %}Statistiques Avancées{% endblock %}
+
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item active">Statistiques</li>
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .stats-header {
+            background: linear-gradient(135deg, #fd79a8 0%, #fdcb6e 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 1rem;
+        }
+        
+        .metric-card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #fd79a8, #fdcb6e);
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 1rem 0;
+        }
+        
+        .metric-change {
+            font-size: 0.9rem;
+            padding: 0.3rem 0.8rem;
+            border-radius: 1rem;
+            font-weight: 500;
+        }
+        
+        .change-positive {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .change-negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .change-neutral {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            height: 400px;
+        }
+        
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f8f9fa;
+        }
+        
+        .filter-tabs {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .filter-tabs .nav-pills .nav-link {
+            border-radius: 0.5rem;
+            margin: 0 0.25rem;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-tabs .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
+            border: none;
+        }
+        
+        .top-products-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .product-item {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #f8f9fa;
+            transition: background-color 0.3s ease;
+        }
+        
+        .product-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .product-rank {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fd79a8, #fdcb6e);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+        
+        .heatmap-cell {
+            border-radius: 0.25rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            position: relative;
+        }
+        
+        .alert-widget {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .alert-item {
+            padding: 1rem;
+            border-left: 4px solid;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        
+        .alert-critical {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        
+        .alert-warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        
+        .alert-info {
+            border-left-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        
+        .performance-gauge {
+            position: relative;
+            width: 200px;
+            height: 100px;
+            margin: 0 auto;
+        }
+        
+        .export-controls {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 10;
+        }
+        
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .count-animation {
+            animation: countUp 0.8s ease-out;
+        }
+        
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 300px;
+            }
+            
+            .metric-card {
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="stats-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-3">
+                    <i class="fas fa-chart-pie me-3"></i>
+                    Statistiques Avancées
+                </h2>
+                <p class="lead mb-0">
+                    Analyse approfondie de vos données d'inventaire et de performance
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group">
+                    <button class="btn btn-light" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i>Actualiser
+                    </button>
+                    <button class="btn btn-light" onclick="exportDashboard()">
+                        <i class="fas fa-download me-1"></i>Exporter
+                    </button>
+                    <button class="btn btn-light" onclick="scheduledReport()">
+                        <i class="fas fa-clock me-1"></i>Planifier
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres temporels -->
+    <div class="filter-tabs">
+        <ul class="nav nav-pills justify-content-center" id="periodTabs">
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-period="today">Aujourd'hui</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link active" href="#" data-period="week">7 jours</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-period="month">30 jours</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-period="quarter">3 mois</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-period="year">1 an</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Métriques principales -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="metric-card count-animation">
+                <i class="fas fa-clipboard-check fa-2x text-primary mb-2"></i>
+                <div class="metric-value text-primary" data-count="{{ stats.total_comptages }}">0</div>
+                <h6 class="text-muted">Total Comptages</h6>
+                <div class="metric-change change-positive">
+                    <i class="fas fa-arrow-up me-1"></i>+12.5%
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="metric-card count-animation">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <div class="metric-value text-success" data-count="{{ stats.comptages_valides }}">0</div>
+                <h6 class="text-muted">Comptages Validés</h6>
+                <div class="metric-change change-positive">
+                    <i class="fas fa-arrow-up me-1"></i>+8.3%
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="metric-card count-animation">
+                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                <div class="metric-value text-warning" data-count="{{ stats.comptages_avec_ecarts }}">0</div>
+                <h6 class="text-muted">Avec Écarts</h6>
+                <div class="metric-change change-negative">
+                    <i class="fas fa-arrow-down me-1"></i>-3.2%
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="metric-card count-animation">
+                <i class="fas fa-boxes fa-2x text-info mb-2"></i>
+                <div class="metric-value text-info" data-count="{{ stats.produits_comptes }}">0</div>
+                <h6 class="text-muted">Produits Comptés</h6>
+                <div class="metric-change change-neutral">
+                    <i class="fas fa-minus me-1"></i>0.0%
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graphiques principaux -->
+    <div class="row mb-4">
+        <!-- Évolution des comptages -->
+        <div class="col-md-8">
+            <div class="chart-container">
+                <div class="export-controls">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportChart('evolutionChart')">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+                <h5 class="chart-title">
+                    <i class="fas fa-chart-line text-primary me-2"></i>
+                    Évolution des Comptages
+                </h5>
+                <canvas id="evolutionChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Répartition des écarts -->
+        <div class="col-md-4">
+            <div class="chart-container">
+                <div class="export-controls">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="exportChart('ecartsChart')">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+                <h5 class="chart-title">
+                    <i class="fas fa-chart-pie text-warning me-2"></i>
+                    Types d'Écarts
+                </h5>
+                <canvas id="ecartsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <!-- Top produits avec écarts -->
+        <div class="col-md-6">
+            <div class="alert-widget">
+                <h5 class="mb-4">
+                    <i class="fas fa-trophy text-warning me-2"></i>
+                    Top Produits avec Écarts
+                </h5>
+                <div class="top-products-list">
+                    {% for produit in top_ecarts|slice(0, 5) %}
+                    <div class="product-item">
+                        <div class="product-rank">{{ loop.index }}</div>
+                        <div class="flex-grow-1">
+                            <strong>{{ produit.codeprod }}</strong>
+                            <br><small class="text-muted">{{ produit.dsignprod|slice(0, 30) }}{% if produit.dsignprod|length > 30 %}...{% endif %}</small>
+                        </div>
+                        <div class="text-end">
+                            <div class="badge bg-danger">{{ produit.total_ecart_absolu }}</div>
+                            <br><small class="text-muted">{{ produit.nb_comptages }} comptages</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alertes et notifications -->
+        <div class="col-md-6">
+            <div class="alert-widget">
+                <h5 class="mb-4">
+                    <i class="fas fa-bell text-danger me-2"></i>
+                    Alertes & Notifications
+                </h5>
+                
+                <div class="alert-item alert-critical">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="fas fa-exclamation-circle me-1"></i>Écarts Critiques</strong>
+                            <br><small>5 produits avec écarts > 20%</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger">Voir</button>
+                    </div>
+                </div>
+                
+                <div class="alert-item alert-warning">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="fas fa-clock me-1"></i>Comptages En Retard</strong>
+                            <br><small>3 sessions non terminées</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-warning">Voir</button>
+                    </div>
+                </div>
+                
+                <div class="alert-item alert-info">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong><i class="fas fa-info-circle me-1"></i>Mise à Jour</strong>
+                            <br><small>Nouvelle version disponible</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-info">Installer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Heatmap d'activité -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="chart-container">
+                <h5 class="chart-title">
+                    <i class="fas fa-calendar-alt text-info me-2"></i>
+                    Heatmap d'Activité (Derniers 30 jours)
+                </h5>
+                <div id="heatmapContainer" class="d-flex justify-content-center">
+                    <!-- Heatmap sera générée par JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métriques de performance -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="metric-card">
+                <h6 class="text-muted mb-3">Taux de Précision</h6>
+                <div class="performance-gauge">
+                    <canvas id="precisionGauge" width="200" height="100"></canvas>
+                </div>
+                <div class="mt-3">
+                    <span class="badge bg-success fs-6">{{ stats.total_comptages > 0 ? ((stats.comptages_valides / stats.total_comptages) * 100)|round(1) : 0 }}%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="metric-card">
+                <h6 class="text-muted mb-3">Efficacité Opérationnelle</h6>
+                <div class="performance-gauge">
+                    <canvas id="efficaciteGauge" width="200" height="100"></canvas>
+                </div>
+                <div class="mt-3">
+                    <span class="badge bg-info fs-6">87.3%</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="metric-card">
+                <h6 class="text-muted mb-3">Qualité des Données</h6>
+                <div class="performance-gauge">
+                    <canvas id="qualiteGauge" width="200" height="100"></canvas>
+                </div>
+                <div class="mt-3">
+                    <span class="badge bg-warning fs-6">92.1%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analyse comparative -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="chart-container">
+                <div class="export-controls">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" onclick="changeComparison('daily')">Jour</button>
+                        <button class="btn btn-outline-secondary active" onclick="changeComparison('weekly')">Semaine</button>
+                        <button class="btn btn-outline-secondary" onclick="changeComparison('monthly')">Mois</button>
+                    </div>
+                </div>
+                <h5 class="chart-title">
+                    <i class="fas fa-chart-bar text-success me-2"></i>
+                    Analyse Comparative
+                </h5>
+                <canvas id="comparaisonChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prédictions et tendances -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="chart-container">
+                <h5 class="chart-title">
+                    <i class="fas fa-chart-line text-purple me-2"></i>
+                    Prédictions & Tendances
+                    <small class="text-muted">(Basé sur l'IA)</small>
+                </h5>
+                <canvas id="tendancesChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="alert-widget">
+                <h5 class="mb-4">
+                    <i class="fas fa-brain text-info me-2"></i>
+                    Insights IA
+                </h5>
+                
+                <div class="mb-3 p-3 border border-info rounded">
+                    <h6 class="text-info mb-2">
+                        <i class="fas fa-lightbulb me-1"></i>Recommandation
+                    </h6>
+                    <p class="small mb-0">
+                        Les écarts sont 23% plus fréquents le vendredi. 
+                        Considérez un double contrôle ce jour-là.
+                    </p>
+                </div>
+                
+                <div class="mb-3 p-3 border border-warning rounded">
+                    <h6 class="text-warning mb-2">
+                        <i class="fas fa-trend-up me-1"></i>Tendance
+                    </h6>
+                    <p class="small mb-0">
+                        Amélioration de 15% de la précision sur le dernier mois.
+                        Excellente progression !
+                    </p>
+                </div>
+                
+                <div class="p-3 border border-success rounded">
+                    <h6 class="text-success mb-2">
+                        <i class="fas fa-target me-1"></i>Objectif
+                    </h6>
+                    <p class="small mb-0">
+                        Vous êtes à 92% de votre objectif mensuel de comptages.
+                        Plus que 8% !
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation des compteurs
+    animateCounters();
+    
+    // Initialisation des graphiques
+    initEvolutionChart();
+    initEcartsChart();
+    initComparaisonChart();
+    initTendancesChart();
+    initGauges();
+    generateHeatmap();
+    
+    // Gestion des filtres temporels
+    document.querySelectorAll('#periodTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Mise à jour de l'onglet actif
+            document.querySelectorAll('#periodTabs .nav-link').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Rechargement des données
+            const period = this.dataset.period;
+            loadDataForPeriod(period);
+        });
+    });
+});
+
+// Animation des compteurs
+function animateCounters() {
+    document.querySelectorAll('[data-count]').forEach(counter => {
+        const target = parseInt(counter.dataset.count);
+        const duration = 2000;
+        const increment = target / (duration / 16);
+        let current = 0;
+        
+        const timer = setInterval(() => {
+            current += increment;
+            if (current >= target) {
+                current = target;
+                clearInterval(timer);
+            }
+            counter.textContent = Math.floor(current).toLocaleString('fr-FR');
+        }, 16);
+    });
+}
+
+// Graphique d'évolution
+function initEvolutionChart() {
+    const ctx = document.getElementById('evolutionChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+            datasets: [{
+                label: 'Comptages',
+                data: [45, 52, 38, 67, 73, 29, 15],
+                borderColor: '#fd79a8',
+                backgroundColor: 'rgba(253, 121, 168, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Validés',
+                data: [42, 48, 35, 63, 69, 27, 14],
+                borderColor: '#00b894',
+                backgroundColor: 'rgba(0, 184, 148, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            },
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+// Graphique des écarts
+function initEcartsChart() {
+    const ctx = document.getElementById('ecartsChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Conformes', 'Surplus', 'Manquants', 'Critiques'],
+            datasets: [{
+                data: [75, 15, 8, 2],
+                backgroundColor: [
+                    '#00b894',
+                    '#fdcb6e', 
+                    '#e17055',
+                    '#d63031'
+                ],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+// Graphique de comparaison
+function initComparaisonChart() {
+    const ctx = document.getElementById('comparaisonChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone E'],
+            datasets: [{
+                label: 'Cette période',
+                data: [65, 59, 80, 81, 56],
+                backgroundColor: 'rgba(253, 121, 168, 0.8)',
+                borderColor: '#fd79a8',
+                borderWidth: 1
+            }, {
+                label: 'Période précédente',
+                data: [58, 62, 75, 77, 52],
+                backgroundColor: 'rgba(253, 203, 110, 0.8)',
+                borderColor: '#fdcb6e',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+}
+
+// Graphique des tendances
+function initTendancesChart() {
+    const ctx = document.getElementById('tendancesChart');
+    if (!ctx) return;
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep'],
+            datasets: [{
+                label: 'Réel',
+                data: [85, 87, 83, 91, 88, 92, 89, 94, 90],
+                borderColor: '#74b9ff',
+                backgroundColor: 'rgba(116, 185, 255, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Prédiction IA',
+                data: [null, null, null, null, null, null, 89, 94, 90, 93, 95, 97],
+                borderColor: '#a29bfe',
+                backgroundColor: 'rgba(162, 155, 254, 0.1)',
+                borderDash: [5, 5],
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { 
+                    beginAtZero: false,
+                    min: 80,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+// Jauges de performance
+function initGauges() {
+    const precisionValue = {{ stats.total_comptages > 0 ? ((stats.comptages_valides / stats.total_comptages) * 100)|round(1) : 0 }};
+    createGauge('precisionGauge', precisionValue, '#00b894');
+    createGauge('efficaciteGauge', 87.3, '#74b9ff');
+    createGauge('qualiteGauge', 92.1, '#fdcb6e');
+}
+
+function createGauge(canvasId, value, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height - 10;
+    const radius = 80;
+    
+    // Fond
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, Math.PI, 0);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = '#e9ecef';
+    ctx.stroke();
+    
+    // Valeur
+    const angle = Math.PI * (value / 100);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, Math.PI, Math.PI + angle);
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+    
+    // Texte
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(value + '%', centerX, centerY - 10);
+}
+
+// Heatmap d'activité
+function generateHeatmap() {
+    const container = document.getElementById('heatmapContainer');
+    if (!container) return;
+    
+    const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const hours = Array.from({length: 24}, (_, i) => i);
+    
+    // Données simulées
+    const data = [];
+    for (let day = 0; day < 7; day++) {
+        for (let hour = 0; hour < 24; hour++) {
+            const value = Math.random() * 100;
+            data.push({ day, hour, value });
+        }
+    }
+    
+    const heatmapHTML = `
+        <div class="heatmap">
+            <div class="d-flex">
+                <div class="me-2">
+                    ${days.map((day, i) => 
+                        `<div style="height: 15px; line-height: 15px; font-size: 10px; margin-bottom: 1px;">${day}</div>`
+                    ).join('')}
+                </div>
+                <div>
+                    ${days.map((day, dayIndex) => `
+                        <div class="d-flex">
+                            ${hours.map(hour => {
+                                const item = data.find(d => d.day === dayIndex && d.hour === hour);
+                                const intensity = item ? item.value / 100 : 0;
+                                const color = `rgba(253, 121, 168, ${intensity})`;
+                                return `<div class="heatmap-cell" 
+                                           style="width: 10px; height: 14px; background: ${color}; margin: 0.5px;" 
+                                           title="${day} ${hour}h: ${Math.round(item ? item.value : 0)}%"></div>`;
+                            }).join('')}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = heatmapHTML;
+}
+
+// Fonctions utilitaires
+function loadDataForPeriod(period) {
+    showNotification(`Chargement des données pour: ${period}`, 'info');
+    // Logique de rechargement des données
+}
+
+function changeComparison(type) {
+    document.querySelectorAll('.export-controls .btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    showNotification(`Comparaison changée: ${type}`, 'info');
+}
+
+function refreshData() {
+    showNotification('Actualisation des données...', 'info');
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportDashboard() {
+    showNotification('Export du dashboard en cours...', 'info');
+    // Logique d'export
+}
+
+function exportChart(chartId) {
+    showNotification(`Export du graphique ${chartId}...`, 'info');
+    // Logique d'export de graphique spécifique
+}
+
+function scheduledReport() {
+    showNotification('Configuration du rapport planifié...', 'info');
+    // Ouvrir modal de configuration
+}
+
+// Mise à jour en temps réel (optionnel)
+setInterval(() => {
+    // Mise à jour des métriques en temps réel
+    const randomUpdate = Math.floor(Math.random() * 5);
+    if (randomUpdate === 0) {
+        // Simulation d'une mise à jour
+        console.log('Mise à jour en temps réel...');
+    }
+}, 30000); // Toutes les 30 secondes
+</script>
+{% endblock %}

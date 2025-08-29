@@ -14,15 +14,22 @@ class SuividupreparationdujourinventaireRepository extends ServiceEntityReposito
         parent::__construct($registry, Suividupreparationdujour::class);
     }
     
-    public function getTotalSortiParProduitEtAdresse($codeProduit, $adresse)
-    {
-        return $this->createQueryBuilder('s')
-            ->select('SUM(s.Nb_art)')
-            ->where('s.CodeProduit = :codeProduit')
-            ->andWhere('s.Adresse = :adresse')
-            ->setParameter('codeProduit', $codeProduit)
-            ->setParameter('adresse', $adresse)
-            ->getQuery()
-            ->getSingleScalarResult() ?: 0;
-    }
+   public function getTotalSortiParProduitEtAdresse($codeProduit, $adresse)
+{
+    $qb = $this->createQueryBuilder('s')
+        ->select('SUM(s.Nb_art)')
+        ->where('s.CodeProduit = :codeProduit')
+        ->andWhere('s.Adresse = :adresse')
+        ->andWhere('(s.Adresse LIKE :pattern1 OR s.Adresse LIKE :pattern2 OR s.Adresse LIKE :pattern3 OR s.Adresse LIKE :pattern4)')
+        ->andWhere('s.Adresse NOT LIKE :etagPrefix')
+        ->setParameter('codeProduit', $codeProduit)
+        ->setParameter('adresse', $adresse)
+        ->setParameter('pattern1', '%-01')
+        ->setParameter('pattern2', '%-02')
+        ->setParameter('pattern3', '%-03')
+        ->setParameter('pattern4', '%-04')
+        ->setParameter('etagPrefix', 'ETAG%');
+    
+    return $qb->getQuery()->getSingleScalarResult() ?: 0;
+}
 }

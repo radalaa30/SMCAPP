@@ -1,0 +1,911 @@
+{% extends 'inventairecompt/base.html.twig' %}
+
+{% block title %}Mode Comptage - {{ codeprod }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .counting-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .qty-input {
+            width: 80px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .qty-theoretical {
+            background-color: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+        
+        .qty-counted {
+            background-color: #fff3e0;
+            border: 2px solid #ff9800;
+        }
+        
+        .difference-positive {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+        
+        .difference-negative {
+            color: #c62828;
+            font-weight: bold;
+        }
+        
+        .difference-neutral {
+            color: #666;
+        }
+        
+        .row-counted {
+            background-color: #f1f8e9;
+        }
+        
+        .row-difference {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .row-major-difference {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        
+        .stats-summary {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: white;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+        }
+
+        .validated-row {
+            background-color: #e8f5e8;
+        }
+
+        .progress-bar-counting {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            transition: width 0.3s ease;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            display: none;
+        }
+
+        .loading-spinner {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+
+        .btn-comment-active {
+            background-color: #ffc107 !important;
+            border-color: #ffc107 !important;
+            color: #000 !important;
+        }
+
+        .scanner-input {
+            background: #f8f9fa;
+            border: 2px dashed #6c757d;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .location-highlight {
+            animation: highlightLocation 2s ease-in-out;
+        }
+        
+        @keyframes highlightLocation {
+            0% { background-color: #fff3cd; }
+            50% { background-color: #ffeaa7; }
+            100% { background-color: inherit; }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <h5>Sauvegarde en cours...</h5>
+        </div>
+    </div>
+
+    <!-- En-tête -->
+    <div class="counting-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3><i class="fas fa-clipboard-check me-2"></i>Mode Comptage Inventaire</h3>
+                <p class="mb-0">
+                    <strong>Code Produit:</strong> {{ codeprod|upper }}
+                    <span class="ms-3"><strong>Désignation:</strong> {{ produit_designation }}</span>
+                    <span class="ms-3"><strong>Emplacements:</strong> {{ donnees_theoriques|length }}</span>
+                    <span class="ms-3"><strong>Session:</strong> <small class="text-white-50">{{ session_id|slice(0, 8) }}...</small></span>
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-success me-2" onclick="saveAllCounts()" id="saveBtn">
+                    <i class="fas fa-save me-1"></i>Sauvegarder
+                </button>
+                <div class="btn-group">
+                    <button class="btn btn-info dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-tools me-1"></i>Actions
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ path('app_inventairecompt_rapport_ecarts', {codeprod: codeprod}) }}">
+                            <i class="fas fa-chart-line me-2"></i>Rapport d'écarts
+                        </a></li>
+                        <li><a class="dropdown-item" href="{{ path('app_inventairecompt_export_comptages', {codeprod: codeprod}) }}">
+                            <i class="fas fa-download me-2"></i>Exporter CSV
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="toggleScannerMode()">
+                            <i class="fas fa-barcode me-2"></i>Mode Scanner
+                        </a></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="resetAllCounts()">
+                            <i class="fas fa-trash me-2"></i>Reset comptages
+                        </a></li>
+                    </ul>
+                </div>
+                <a href="{{ path('app_inventairecompt_search', {codeprod: codeprod}) }}" class="btn btn-light ms-2">
+                    <i class="fas fa-arrow-left me-1"></i>Retour
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode scanner -->
+    <div class="scanner-input" id="scannerMode" style="display: none;">
+        <i class="fas fa-qrcode fa-2x text-muted mb-2"></i>
+        <div>
+            <input type="text" 
+                   class="form-control d-inline-block w-auto" 
+                   id="scannerInput" 
+                   placeholder="Scanner le code-barres de l'emplacement..."
+                   autocomplete="off">
+            <button class="btn btn-primary ms-2" onclick="findLocation()">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Résumé des statistiques -->
+    <div class="stats-summary">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h5 class="text-primary mb-1" id="totalItems">{{ donnees_theoriques|length }}</h5>
+                    <small class="text-muted">Emplacements</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h5 class="text-success mb-1" id="countedItems">{{ statistiques.emplacements_valides|default(0) }}</h5>
+                    <small class="text-muted">Comptés & Validés</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h5 class="text-warning mb-1" id="differenceItems">0</h5>
+                    <small class="text-muted">Avec écarts</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h5 class="text-info mb-1" id="totalDifference">{{ statistiques.ecart_total|default(0) }}</h5>
+                    <small class="text-muted">Écart total</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Barre de progression -->
+        <div class="mt-2">
+            <small class="text-muted">Progression: <span id="progressText">0/{{ donnees_theoriques|length }} emplacements validés</span></small>
+            <div class="progress-bar-counting">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau de comptage -->
+    <div class="card">
+        <div class="card-header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5><i class="fas fa-table me-2"></i>Saisie des Quantités Comptées</h5>
+                </div>
+                <div class="col-md-6 text-end">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="validateAll()">
+                        <i class="fas fa-check-double me-1"></i>Valider tout
+                    </button>
+                    <button class="btn btn-outline-info btn-sm me-2" onclick="fillWithTheoretical()">
+                        <i class="fas fa-copy me-1"></i>Copier théorique
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadExistingCounts()">
+                        <i class="fas fa-sync me-1"></i>Actualiser
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="countingTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 15%">Emplacement</th>
+                            <th style="width: 25%">Désignation</th>
+                            <th style="width: 8%">Zone</th>
+                            <th style="width: 10%">Palette</th>
+                            <th style="width: 10%" class="text-center">Qty Théorique</th>
+                            <th style="width: 10%" class="text-center">Qty Comptée</th>
+                            <th style="width: 10%" class="text-center">Écart</th>
+                            <th style="width: 12%" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in donnees_theoriques %}
+                        {% set existing_comptage = comptages_existants[item.emplacement]|default(null) %}
+                        <tr id="row-{{ loop.index }}" 
+                            data-emplacement="{{ item.emplacement }}"
+                            data-theoretical="{{ item.total_uvtotal }}"
+                            data-designation="{{ item.dsignprod }}"
+                            data-zone="{{ item.zone }}"
+                            data-nopal="{{ item.nopal }}"
+                            {% if existing_comptage and existing_comptage.valide %}class="validated-row"{% endif %}>
+                            
+                            <td>
+                                <span class="badge bg-primary fs-6">{{ item.emplacement }}</span>
+                                {% if item.nb_lignes > 1 %}
+                                    <br><small class="text-muted"><i class="fas fa-layer-group me-1"></i>{{ item.nb_lignes }} entrées</small>
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                <strong>{{ item.dsignprod|slice(0, 40) }}{% if item.dsignprod|length > 40 %}...{% endif %}</strong>
+                                <br><small class="text-muted">{{ item.codeprod }}</small>
+                            </td>
+                            
+                            <td>
+                                {% if item.zone %}
+                                    <span class="badge bg-secondary">{{ item.zone }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                {% if item.nopal %}
+                                    <small class="text-muted">{{ item.nopal }}</small>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td class="text-center">
+                                <input type="number" 
+                                       class="form-control qty-input qty-theoretical" 
+                                       value="{{ item.total_uvtotal }}" 
+                                       readonly>
+                                <small class="text-muted d-block">Théorique</small>
+                            </td>
+                            
+                            <td class="text-center">
+                                <input type="number" 
+                                       class="form-control qty-input qty-counted" 
+                                       data-row="{{ loop.index }}"
+                                       value="{{ existing_comptage ? existing_comptage.qteComptee : '' }}"
+                                       placeholder="Compté" 
+                                       min="0" 
+                                       onchange="calculateDifference({{ loop.index }})"
+                                       onkeypress="handleEnterKey(event, {{ loop.index }})"
+                                       onfocus="this.select()">
+                                <small class="text-muted d-block">Réel</small>
+                            </td>
+                            
+                            <td class="text-center">
+                                <div class="difference-display" id="diff-{{ loop.index }}">
+                                    {% if existing_comptage %}
+                                        {% set ecart = existing_comptage.ecart %}
+                                        <span class="{% if ecart > 0 %}difference-positive{% elseif ecart < 0 %}difference-negative{% else %}difference-neutral{% endif %}">
+                                            {% if ecart > 0 %}+{{ ecart }}{% elseif ecart < 0 %}{{ ecart }}{% else %}0{% endif %}
+                                        </span>
+                                    {% else %}
+                                        <span class="difference-neutral">-</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            
+                            <td class="text-center">
+                                <div class="btn-group-vertical btn-group-sm">
+                                    <button class="btn {% if existing_comptage and existing_comptage.valide %}btn-warning{% else %}btn-outline-success{% endif %} btn-sm" 
+                                            onclick="{% if existing_comptage and existing_comptage.valide %}unvalidateRow({{ loop.index }}){% else %}validateRow({{ loop.index }}){% endif %}" 
+                                            id="validate-{{ loop.index }}"
+                                            title="{% if existing_comptage and existing_comptage.valide %}Annuler validation{% else %}Valider{% endif %}">
+                                        <i class="fas {% if existing_comptage and existing_comptage.valide %}fa-undo{% else %}fa-check{% endif %}"></i>
+                                    </button>
+                                    <button class="btn {% if existing_comptage and existing_comptage.commentaire %}btn-comment-active{% else %}btn-outline-info{% endif %} btn-sm" 
+                                            onclick="addComment({{ loop.index }})"
+                                            id="comment-{{ loop.index }}"
+                                            title="{% if existing_comptage and existing_comptage.commentaire %}Modifier commentaire{% else %}Ajouter commentaire{% endif %}">
+                                        <i class="fas fa-comment"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions finales -->
+    <div class="row mt-4">
+        <div class="col-md-12 text-center">
+            <div class="btn-group" role="group">
+                <button class="btn btn-success btn-lg" onclick="saveAllCounts()">
+                    <i class="fas fa-save me-2"></i>Sauvegarder Tout
+                </button>
+                <button class="btn btn-warning btn-lg" onclick="window.location.href='{{ path('app_inventairecompt_rapport_ecarts', {codeprod: codeprod}) }}'">
+                    <i class="fas fa-file-export me-2"></i>Voir Rapport
+                </button>
+                <button class="btn btn-info btn-lg" onclick="exportToCSV()">
+                    <i class="fas fa-download me-2"></i>Exporter CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour commentaires -->
+<div class="modal fade" id="commentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un commentaire</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="commentForm">
+                    <input type="hidden" id="commentRowId">
+                    <div class="mb-3">
+                        <label class="form-label">Emplacement</label>
+                        <input type="text" class="form-control" id="commentLocation" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commentaire *</label>
+                        <textarea class="form-control" id="commentText" rows="3" 
+                                  placeholder="Expliquez la raison de l'écart..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Type d'écart</label>
+                        <select class="form-select" id="commentType">
+                            <option value="">Sélectionner...</option>
+                            <option value="damaged">Produit endommagé</option>
+                            <option value="missing">Produit manquant</option>
+                            <option value="misplaced">Mal placé</option>
+                            <option value="extra">Surplus trouvé</option>
+                            <option value="counting_error">Erreur de comptage</option>
+                            <option value="system_error">Erreur système</option>
+                            <option value="other">Autre</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveComment()">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+    // Variables globales
+    let validatedRows = new Set();
+    let comments = {};
+    let scannerMode = false;
+    const codeprod = '{{ codeprod }}';
+    const totalRows = {{ donnees_theoriques|length }};
+
+    // Charger les données existantes
+    {% if comptages_existants %}
+        {% for emplacement, comptage in comptages_existants %}
+            {% if comptage.valide %}
+                validatedRows.add({{ loop.index }});
+            {% endif %}
+            {% if comptage.commentaire %}
+                comments[{{ loop.index }}] = {
+                    text: '{{ comptage.commentaire|escape('js') }}',
+                    type: '{{ comptage.typeEcart|default('')|escape('js') }}'
+                };
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
+        updateStats();
+        
+        // Focus sur le premier champ non rempli
+        const firstEmptyInput = document.querySelector('.qty-counted[value=""]');
+        if (firstEmptyInput) {
+            firstEmptyInput.focus();
+        }
+
+        // Calculer les différences pour les valeurs existantes
+        for (let i = 1; i <= totalRows; i++) {
+            calculateDifference(i);
+        }
+
+        // Raccourcis clavier
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveAllCounts();
+            }
+            if (e.ctrlKey && e.key === 'e') {
+                e.preventDefault();
+                exportToCSV();
+            }
+        });
+    });
+
+    // Calcul des différences
+    function calculateDifference(rowId) {
+        const row = document.getElementById(`row-${rowId}`);
+        const theoreticalInput = row.querySelector('.qty-theoretical');
+        const countedInput = row.querySelector('.qty-counted');
+        const diffElement = document.getElementById(`diff-${rowId}`);
+
+        const theoretical = parseInt(theoreticalInput.value) || 0;
+        const counted = parseInt(countedInput.value);
+        
+        if (isNaN(counted) || countedInput.value === '') {
+            diffElement.innerHTML = '<span class="difference-neutral">-</span>';
+            row.classList.remove('row-difference', 'row-major-difference');
+            updateStats();
+            return;
+        }
+
+        const difference = counted - theoretical;
+        
+        // Mise à jour de l'affichage de la différence
+        let className, content;
+        if (difference > 0) {
+            className = 'difference-positive';
+            content = `+${difference}`;
+        } else if (difference < 0) {
+            className = 'difference-negative';
+            content = `${difference}`;
+        } else {
+            className = 'difference-neutral';
+            content = '0';
+        }
+        
+        diffElement.innerHTML = `<span class="${className}">${content}</span>`;
+
+        // Mise en surbrillance des lignes avec écarts
+        row.classList.remove('row-difference', 'row-major-difference');
+        if (Math.abs(difference) > 0) {
+            if (theoretical > 0 && Math.abs(difference) / theoretical > 0.1) { // Écart > 10%
+                row.classList.add('row-major-difference');
+            } else {
+                row.classList.add('row-difference');
+            }
+        }
+
+        updateStats();
+    }
+
+    // Validation d'une ligne
+    function validateRow(rowId) {
+        const countedInput = document.querySelector(`#row-${rowId} .qty-counted`);
+        const validateBtn = document.getElementById(`validate-${rowId}`);
+        const row = document.getElementById(`row-${rowId}`);
+
+        if (countedInput.value === '') {
+            alert('Veuillez saisir une quantité avant de valider');
+            countedInput.focus();
+            return;
+        }
+
+        validatedRows.add(rowId);
+        validateBtn.innerHTML = '<i class="fas fa-undo"></i>';
+        validateBtn.className = 'btn btn-warning btn-sm';
+        validateBtn.setAttribute('onclick', `unvalidateRow(${rowId})`);
+        validateBtn.setAttribute('title', 'Annuler validation');
+        row.classList.add('validated-row');
+
+        updateStats();
+        
+        // Auto-focus sur la ligne suivante
+        const nextRow = rowId + 1;
+        if (nextRow <= totalRows) {
+            const nextInput = document.querySelector(`#row-${nextRow} .qty-counted`);
+            if (nextInput && !validatedRows.has(nextRow) && nextInput.value === '') {
+                nextInput.focus();
+            }
+        }
+    }
+
+    // Annulation de validation
+    function unvalidateRow(rowId) {
+        const validateBtn = document.getElementById(`validate-${rowId}`);
+        const row = document.getElementById(`row-${rowId}`);
+
+        validatedRows.delete(rowId);
+        validateBtn.innerHTML = '<i class="fas fa-check"></i>';
+        validateBtn.className = 'btn btn-outline-success btn-sm';
+        validateBtn.setAttribute('onclick', `validateRow(${rowId})`);
+        validateBtn.setAttribute('title', 'Valider');
+        row.classList.remove('validated-row');
+
+        updateStats();
+    }
+
+    // Gestion de la touche Entrée
+    function handleEnterKey(event, currentRow) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            calculateDifference(currentRow);
+            validateRow(currentRow);
+        }
+        if (event.key === 'Escape') {
+            event.target.blur();
+        }
+    }
+
+    // Mise à jour des statistiques
+    function updateStats() {
+        let countedItems = 0;
+        let differenceItems = 0;
+        let totalDifference = 0;
+
+        for (let i = 1; i <= totalRows; i++) {
+            const countedInput = document.querySelector(`#row-${i} .qty-counted`);
+            const theoreticalInput = document.querySelector(`#row-${i} .qty-theoretical`);
+            
+            if (countedInput.value !== '') {
+                countedItems++;
+                
+                const theoretical = parseInt(theoreticalInput.value) || 0;
+                const counted = parseInt(countedInput.value) || 0;
+                const difference = counted - theoretical;
+                
+                if (difference !== 0) {
+                    differenceItems++;
+                    totalDifference += difference;
+                }
+            }
+        }
+
+        document.getElementById('countedItems').textContent = validatedRows.size;
+        document.getElementById('differenceItems').textContent = differenceItems;
+        document.getElementById('totalDifference').textContent = totalDifference;
+
+        // Mise à jour de la barre de progression
+        const progressPercent = (validatedRows.size / totalRows) * 100;
+        document.getElementById('progressBar').style.width = progressPercent + '%';
+        document.getElementById('progressText').textContent = `${validatedRows.size}/${totalRows} emplacements validés`;
+
+        // Activer/désactiver le bouton de sauvegarde
+        const saveBtn = document.getElementById('saveBtn');
+        if (validatedRows.size > 0) {
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('btn-secondary');
+            saveBtn.classList.add('btn-success');
+        } else {
+            saveBtn.disabled = true;
+            saveBtn.classList.remove('btn-success');
+            saveBtn.classList.add('btn-secondary');
+        }
+    }
+
+    // Mode scanner
+    function toggleScannerMode() {
+        scannerMode = !scannerMode;
+        const scannerDiv = document.getElementById('scannerMode');
+        const scannerInput = document.getElementById('scannerInput');
+        
+        if (scannerMode) {
+            scannerDiv.style.display = 'block';
+            scannerInput.focus();
+        } else {
+            scannerDiv.style.display = 'none';
+        }
+    }
+
+    // Recherche d'emplacement via scanner
+    function findLocation() {
+        const scannedCode = document.getElementById('scannerInput').value.trim();
+        if (!scannedCode) return;
+
+        const rows = document.querySelectorAll('[data-emplacement]');
+        let found = false;
+
+        rows.forEach(row => {
+            if (row.dataset.emplacement === scannedCode) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.classList.add('location-highlight');
+                
+                const input = row.querySelector('.qty-counted');
+                if (input) {
+                    setTimeout(() => {
+                        input.focus();
+                        input.select();
+                    }, 500);
+                }
+                
+                found = true;
+                
+                setTimeout(() => {
+                    row.classList.remove('location-highlight');
+                }, 2000);
+            }
+        });
+
+        if (!found) {
+            alert(`Emplacement "${scannedCode}" non trouvé dans cette liste`);
+        }
+
+        document.getElementById('scannerInput').value = '';
+    }
+
+    // Copier les valeurs théoriques
+    function fillWithTheoretical() {
+        if (!confirm('Copier toutes les valeurs théoriques dans les champs comptés ?')) return;
+        
+        for (let i = 1; i <= totalRows; i++) {
+            const row = document.getElementById(`row-${i}`);
+            const theoreticalInput = row.querySelector('.qty-theoretical');
+            const countedInput = row.querySelector('.qty-counted');
+            
+            if (countedInput.value === '') {
+                countedInput.value = theoreticalInput.value;
+                calculateDifference(i);
+            }
+        }
+    }
+
+    // Ajout de commentaire
+    function addComment(rowId) {
+        const row = document.getElementById(`row-${rowId}`);
+        const location = row.dataset.emplacement;
+        
+        document.getElementById('commentRowId').value = rowId;
+        document.getElementById('commentLocation').value = location;
+        document.getElementById('commentText').value = comments[rowId]?.text || '';
+        document.getElementById('commentType').value = comments[rowId]?.type || '';
+        
+        new bootstrap.Modal(document.getElementById('commentModal')).show();
+    }
+
+    // Sauvegarde du commentaire
+    function saveComment() {
+        const rowId = document.getElementById('commentRowId').value;
+        const text = document.getElementById('commentText').value.trim();
+        const type = document.getElementById('commentType').value;
+        
+        if (!text) {
+            alert('Veuillez saisir un commentaire');
+            return;
+        }
+        
+        comments[rowId] = { text, type };
+        
+        // Mettre à jour l'indicateur visuel
+        const commentBtn = document.getElementById(`comment-${rowId}`);
+        commentBtn.classList.remove('btn-outline-info');
+        commentBtn.classList.add('btn-comment-active');
+        commentBtn.setAttribute('title', 'Modifier commentaire');
+        
+        bootstrap.Modal.getInstance(document.getElementById('commentModal')).hide();
+    }
+
+    // Validation globale
+    function validateAll() {
+        let hasEmpty = false;
+        for (let i = 1; i <= totalRows; i++) {
+            const input = document.querySelector(`#row-${i} .qty-counted`);
+            if (input.value === '') {
+                hasEmpty = true;
+                break;
+            }
+        }
+        
+        if (hasEmpty && !confirm('Certains champs ne sont pas remplis. Voulez-vous continuer ?')) {
+            return;
+        }
+        
+        for (let i = 1; i <= totalRows; i++) {
+            const input = document.querySelector(`#row-${i} .qty-counted`);
+            if (input.value !== '' && !validatedRows.has(i)) {
+                validateRow(i);
+            }
+        }
+    }
+
+    // Sauvegarde globale
+    async function saveAllCounts() {
+        if (validatedRows.size === 0) {
+            alert('Veuillez valider au moins un emplacement avant de sauvegarder');
+            return;
+        }
+        
+        // Afficher l'overlay de chargement
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        
+        const counts = [];
+        for (let i = 1; i <= totalRows; i++) {
+            const row = document.getElementById(`row-${i}`);
+            const countedInput = row.querySelector('.qty-counted');
+            
+            if (countedInput.value !== '') {
+                counts.push({
+                    codeprod: codeprod,
+                    designation: row.dataset.designation,
+                    emplacement: row.dataset.emplacement,
+                    zone: row.dataset.zone,
+                    nopal: row.dataset.nopal,
+                    theoretical: parseInt(row.dataset.theoretical),
+                    counted: parseInt(countedInput.value),
+                    validated: validatedRows.has(i),
+                    comment: comments[i] || null
+                });
+            }
+        }
+        
+        try {
+            const response = await fetch('{{ path('app_inventairecompt_save_counts') }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ counts: counts })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                // Animation de succès
+                document.querySelector('.loading-spinner h5').textContent = 'Sauvegarde réussie !';
+                document.querySelector('.spinner-border').classList.add('text-success');
+                
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    
+                    // Afficher le message de succès
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3';
+                    alertDiv.style.zIndex = '10000';
+                    alertDiv.innerHTML = `
+                        <i class="fas fa-check-circle me-2"></i>
+                        ${result.total_count} enregistrements sauvegardés avec succès !
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(alertDiv);
+                    
+                    // Supprimer l'alerte après 5 secondes
+                    setTimeout(() => {
+                        if (alertDiv.parentNode) {
+                            alertDiv.parentNode.removeChild(alertDiv);
+                        }
+                    }, 5000);
+                }, 1000);
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            document.getElementById('loadingOverlay').style.display = 'none';
+            alert('Erreur lors de la sauvegarde: ' + error.message);
+        }
+    }
+
+    // Reset des comptages
+    async function resetAllCounts() {
+        if (!confirm('Êtes-vous sûr de vouloir supprimer tous les comptages de ce produit ?\n\nCette action est irréversible.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`{{ path('app_inventairecompt_reset_comptages', {codeprod: '__CODEPROD__'}) }}`.replace('__CODEPROD__', codeprod), {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                alert(result.message);
+                location.reload();
+            } else {
+                alert('Erreur: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            alert('Erreur lors de la suppression');
+        }
+    }
+
+    // Charger les comptages existants
+    async function loadExistingCounts() {
+        try {
+            const response = await fetch(`{{ path('app_inventairecompt_api_comptages', {codeprod: '__CODEPROD__'}) }}`.replace('__CODEPROD__', codeprod));
+            const result = await response.json();
+            
+            console.log('Comptages actualisés:', result);
+            // Ici on pourrait mettre à jour l'interface si nécessaire
+            
+        } catch (error) {
+            console.error('Erreur:', error);
+        }
+    }
+
+    // Export CSV
+    function exportToCSV() {
+        window.location.href = '{{ path('app_inventairecompt_export_comptages', {codeprod: codeprod}) }}';
+    }
+
+    // Notification de raccourcis clavier
+    setTimeout(() => {
+        const helpDiv = document.createElement('div');
+        helpDiv.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 end-0 me-3 mb-3';
+        helpDiv.style.zIndex = '1000';
+        helpDiv.style.maxWidth = '300px';
+        helpDiv.innerHTML = `
+            <strong>Raccourcis clavier :</strong><br>
+            <small>
+                <kbd>Ctrl</kbd> + <kbd>S</kbd> : Sauvegarder<br>
+                <kbd>Ctrl</kbd> + <kbd>E</kbd> : Exporter<br>
+                <kbd>Entrée</kbd> : Valider ligne<br>
+                <kbd>Échap</kbd> : Quitter champ
+            </small>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(helpDiv);
+        
+        // Supprimer automatiquement après 10 secondes
+        setTimeout(() => {
+            if (helpDiv.parentNode) {
+                helpDiv.parentNode.removeChild(helpDiv);
+            }
+        }, 10000);
+    }, 2000);
+</script>
+{% endblock %}

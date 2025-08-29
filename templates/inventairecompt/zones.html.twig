@@ -1,0 +1,926 @@
+{% extends 'inventairecompt/base.html.twig' %}
+
+{% block title %}Zone {{ zone }} - Détails{% endblock %}
+
+{% block breadcrumb_items %}
+    <li class="breadcrumb-item">
+        <a href="{{ path('app_inventairecompt_zones') }}">Zones</a>
+    </li>
+    <li class="breadcrumb-item active">Zone {{ zone }}</li>
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .zone-detail-header {
+            background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+            color: white;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 1rem;
+        }
+        
+        .product-card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            border-left: 4px solid #00b894;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .product-card.low-stock {
+            border-left-color: #fdcb6e;
+            background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+        }
+        
+        .product-card.out-of-stock {
+            border-left-color: #e17055;
+            background: linear-gradient(135deg, #ffeee6 0%, #ffffff 100%);
+        }
+        
+        .stock-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        .stock-high { background: #00b894; }
+        .stock-medium { background: #fdcb6e; }
+        .stock-low { background: #e17055; }
+        .stock-empty { background: #d63031; }
+        
+        .zone-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .metric-widget {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .metric-widget::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #00b894, #00cec9);
+        }
+        
+        .metric-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 1.2rem;
+        }
+        
+        .filter-bar {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .quick-actions {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+        
+        .action-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+            box-shadow: 0 4px 20px rgba(0, 184, 148, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .action-fab:hover {
+            transform: scale(1.1);
+            color: white;
+        }
+        
+        .zone-map-mini {
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            text-align: center;
+            border: 2px dashed #dee2e6;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        .activity-feed {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .activity-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00b894, #00cec9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            font-size: 0.9rem;
+        }
+        
+        .bulk-actions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .bulk-actions.show {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 768px) {
+            .zone-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .quick-actions {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <!-- En-tête de zone -->
+    <div class="zone-detail-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="me-3">
+                        <i class="fas fa-map-marker-alt fa-3x"></i>
+                    </div>
+                    <div>
+                        <h2 class="mb-0">Zone {{ zone }}</h2>
+                        <p class="lead mb-0">Secteur de stockage principal</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Localisation:</strong> Entrepôt Nord</p>
+                        <p class="mb-1"><strong>Type:</strong> Stockage général</p>
+                        <p class="mb-0"><strong>Responsable:</strong> Jean Dupont</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Superficie:</strong> 250 m²</p>
+                        <p class="mb-1"><strong>Capacité:</strong> 500 emplacements</p>
+                        <p class="mb-0"><strong>Dernière MàJ:</strong> {{ "now"|date('d/m/Y H:i') }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="btn-group-vertical">
+                    <button class="btn btn-light mb-2" onclick="exportZoneData()">
+                        <i class="fas fa-download me-2"></i>Exporter Zone
+                    </button>
+                    <button class="btn btn-light mb-2" onclick="zoneInventory()">
+                        <i class="fas fa-clipboard-check me-2"></i>Inventaire Global
+                    </button>
+                    <button class="btn btn-light" onclick="printZone()">
+                        <i class="fas fa-print me-2"></i>Imprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Métriques de la zone -->
+    <div class="zone-metrics">
+        <div class="metric-widget">
+            <div class="metric-icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <h3 class="text-primary">{{ count }}</h3>
+            <p class="text-muted mb-0">Produits Stockés</p>
+            <small class="text-success">+5% ce mois</small>
+        </div>
+        
+        <div class="metric-widget">
+            <div class="metric-icon bg-warning">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <h3 class="text-warning">{{ (count * 1.8)|round }}</h3>
+            <p class="text-muted mb-0">Emplacements</p>
+            <small class="text-info">85% occupation</small>
+        </div>
+        
+        <div class="metric-widget">
+            <div class="metric-icon bg-success">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <h3 class="text-success">{{ random(1000, 9999) }}</h3>
+            <p class="text-muted mb-0">Mouvements/jour</p>
+            <small class="text-success">+12% vs hier</small>
+        </div>
+        
+        <div class="metric-widget">
+            <div class="metric-icon bg-info">
+                <i class="fas fa-clock"></i>
+            </div>
+            <h3 class="text-info">2.3h</h3>
+            <p class="text-muted mb-0">Temps moy. comptage</p>
+            <small class="text-warning">-8% vs moyenne</small>
+        </div>
+    </div>
+
+    <!-- Barre de filtres et recherche -->
+    <div class="filter-bar">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <i class="fas fa-search"></i>
+                    </span>
+                    <input type="text" class="form-control" id="productSearch" 
+                           placeholder="Rechercher un produit dans cette zone...">
+                    <button class="btn btn-primary" onclick="searchProducts()">
+                        Rechercher
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="stockFilter" onchange="filterByStock()">
+                    <option value="all">Tous les stocks</option>
+                    <option value="high">Stock élevé</option>
+                    <option value="medium">Stock moyen</option>
+                    <option value="low">Stock faible</option>
+                    <option value="empty">Rupture</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="selectAllProducts" onchange="toggleSelectAll()">
+                    <label class="form-check-label" for="selectAllProducts">
+                        Sélectionner tout
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions en lot -->
+    <div class="bulk-actions" id="bulkActions">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong><span id="selectedCount">0</span> produit(s) sélectionné(s)</strong>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-sm btn-primary" onclick="bulkInventory()">
+                    <i class="fas fa-clipboard-check me-1"></i>Inventaire
+                </button>
+                <button class="btn btn-sm btn-success" onclick="bulkExport()">
+                    <i class="fas fa-download me-1"></i>Exporter
+                </button>
+                <button class="btn btn-sm btn-warning" onclick="bulkMove()">
+                    <i class="fas fa-arrows-alt me-1"></i>Déplacer
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                    <i class="fas fa-times me-1"></i>Annuler
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Liste des produits -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Produits en Zone {{ zone }}
+                        </h5>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary active" onclick="toggleView('list')">
+                                <i class="fas fa-list"></i>
+                            </button>
+                            <button class="btn btn-outline-primary" onclick="toggleView('grid')">
+                                <i class="fas fa-th"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="productsList">
+                        {% for result in results %}
+                        <div class="product-card product-item {% if result.urdispo + result.ucdispo < 10 %}low-stock{% elseif result.urdispo + result.ucdispo == 0 %}out-of-stock{% endif %}"
+                             data-product="{{ result.codeprod }}" data-stock="{{ result.urdispo + result.ucdispo }}">
+                            
+                            <div class="row align-items-center">
+                                <div class="col-md-1">
+                                    <input type="checkbox" class="form-check-input product-checkbox" 
+                                           value="{{ result.codeprod }}" onchange="updateSelection()">
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="stock-indicator {% if result.urdispo + result.ucdispo > 50 %}stock-high{% elseif result.urdispo + result.ucdispo > 20 %}stock-medium{% elseif result.urdispo + result.ucdispo > 0 %}stock-low{% else %}stock-empty{% endif %}"></div>
+                                        <div>
+                                            <strong>{{ result.codeprod }}</strong>
+                                            <br><small class="text-muted">{{ result.emplacement }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6 class="mb-1">{{ result.dsignprod|slice(0, 40) }}{% if result.dsignprod|length > 40 %}...{% endif %}</h6>
+                                    <small class="text-muted">
+                                        {% if result.nopal %}
+                                            <i class="fas fa-pallet me-1"></i>{{ result.nopal }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="badge {% if result.uvtotal > 100 %}bg-success{% elseif result.uvtotal > 50 %}bg-warning{% else %}bg-danger{% endif %} fs-6">
+                                        {{ result.uvtotal ?? 0 }}
+                                    </div>
+                                    <br><small class="text-muted">UV Total</small>
+                                </div>
+                                <div class="col-md-2 text-center">
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <div class="badge bg-info">{{ result.urdispo ?? 0 }}</div>
+                                            <br><small class="text-muted">UR</small>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="badge bg-primary">{{ result.ucdispo ?? 0 }}</div>
+                                            <br><small class="text-muted">UC</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-2">
+                                <div class="col-md-8">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Dernière entrée: {{ result.dateentree ? result.dateentree|date('d/m/Y') : 'N/A' }}
+                                    </small>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ path('app_inventairecompt_search', {codeprod: result.codeprod}) }}" 
+                                           class="btn btn-outline-primary" title="Voir détails">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{{ path('app_inventairecompt_comptage', {codeprod: result.codeprod}) }}" 
+                                           class="btn btn-outline-success" title="Compter">
+                                            <i class="fas fa-clipboard-check"></i>
+                                        </a>
+                                        <button class="btn btn-outline-info" onclick="productHistory('{{ result.codeprod }}')" title="Historique">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center p-5">
+                            <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+                            <h4 class="text-muted">Aucun produit dans cette zone</h4>
+                            <p class="text-muted">La zone {{ zone }} ne contient actuellement aucun produit stocké.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if results|length > 20 %}
+            <nav class="mt-3" aria-label="Navigation produits">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadPage(1)">Première</a>
+                    </li>
+                    <li class="page-item active">
+                        <a class="page-link" href="#">1</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadPage(2)">2</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadPage(2)">Suivante</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar droite -->
+        <div class="col-md-4">
+            <!-- Mini carte de zone -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-map me-2"></i>Plan de Zone
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="zone-map-mini">
+                        <i class="fas fa-map fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-2">Plan de la zone {{ zone }}</p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="showFullMap()">
+                            <i class="fas fa-expand me-1"></i>Voir en grand
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activité récente -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Activité Récente
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="activity-feed">
+                        <div class="activity-item">
+                            <div class="activity-avatar">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <div>
+                                <strong>Entrée stock</strong>
+                                <br><small class="text-muted">Produit ABC123 - il y a 15min</small>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-avatar bg-warning">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <div>
+                                <strong>Comptage</strong>
+                                <br><small class="text-muted">Zone {{ zone }} - il y a 1h</small>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-avatar bg-danger">
+                                <i class="fas fa-minus"></i>
+                            </div>
+                            <div>
+                                <strong>Sortie stock</strong>
+                                <br><small class="text-muted">Produit XYZ789 - il y a 2h</small>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-avatar bg-info">
+                                <i class="fas fa-sync"></i>
+                            </div>
+                            <div>
+                                <strong>Synchronisation</strong>
+                                <br><small class="text-muted">Données mises à jour - il y a 3h</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiques rapides -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Statistiques
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6 mb-3">
+                            <h5 class="text-success">{{ ((results|length * 0.7)|round) }}</h5>
+                            <small class="text-muted">Stock Normal</small>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <h5 class="text-warning">{{ ((results|length * 0.2)|round) }}</h5>
+                            <small class="text-muted">Stock Faible</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-danger">{{ ((results|length * 0.1)|round) }}</h5>
+                            <small class="text-muted">Ruptures</small>
+                        </div>
+                        <div class="col-6">
+                            <h5 class="text-info">85%</h5>
+                            <small class="text-muted">Taux de rotation</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions flottantes -->
+    <div class="quick-actions">
+        <button class="action-fab" onclick="quickAdd()" title="Ajout rapide">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="action-fab" onclick="quickInventory()" title="Inventaire rapide">
+            <i class="fas fa-clipboard-check"></i>
+        </button>
+        <button class="action-fab" onclick="quickSearch()" title="Recherche rapide">
+            <i class="fas fa-search"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Modal d'inventaire rapide -->
+<div class="modal fade" id="quickInventoryModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    Inventaire Rapide - Zone {{ zone }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Scannez ou saisissez les codes produits pour un inventaire rapide de la zone.
+                </div>
+                
+                <form id="quickInventoryForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Code Produit</label>
+                            <input type="text" class="form-control" id="quickProductCode" 
+                                   placeholder="Scanner ou saisir...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Emplacement</label>
+                            <input type="text" class="form-control" id="quickLocation" 
+                                   placeholder="Ex: {{ zone }}1-01-001">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Quantité</label>
+                            <input type="number" class="form-control" id="quickQuantity" 
+                                   placeholder="0" min="0">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="button" class="btn btn-primary" onclick="addQuickItem()">
+                            <i class="fas fa-plus me-1"></i>Ajouter
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-4">
+                    <h6>Éléments ajoutés:</h6>
+                    <div id="quickItems" class="border rounded p-2" style="min-height: 100px;">
+                        <small class="text-muted">Aucun élément ajouté</small>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuickInventory()">
+                    <i class="fas fa-save me-1"></i>Sauvegarder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+let selectedProducts = new Set();
+let quickInventoryItems = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus sur la recherche
+    document.getElementById('productSearch').focus();
+    
+    // Animation des cartes produits
+    animateProductCards();
+});
+
+// Animation des cartes
+function animateProductCards() {
+    const cards = document.querySelectorAll('.product-card');
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            card.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, 50);
+        }, index * 50);
+    });
+}
+
+// Recherche de produits
+function searchProducts() {
+    const query = document.getElementById('productSearch').value.toLowerCase();
+    const products = document.querySelectorAll('.product-item');
+    
+    products.forEach(product => {
+        const text = product.textContent.toLowerCase();
+        if (text.includes(query)) {
+            product.style.display = '';
+        } else {
+            product.style.display = 'none';
+        }
+    });
+}
+
+// Filtrage par stock
+function filterByStock() {
+    const filter = document.getElementById('stockFilter').value;
+    const products = document.querySelectorAll('.product-item');
+    
+    products.forEach(product => {
+        const stock = parseInt(product.dataset.stock);
+        let show = false;
+        
+        switch(filter) {
+            case 'all': show = true; break;
+            case 'high': show = stock > 50; break;
+            case 'medium': show = stock > 20 && stock <= 50; break;
+            case 'low': show = stock > 0 && stock <= 20; break;
+            case 'empty': show = stock === 0; break;
+        }
+        
+        product.style.display = show ? '' : 'none';
+    });
+}
+
+// Gestion de la sélection
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAllProducts');
+    const checkboxes = document.querySelectorAll('.product-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateSelection();
+}
+
+function updateSelection() {
+    const checkboxes = document.querySelectorAll('.product-checkbox:checked');
+    selectedProducts.clear();
+    
+    checkboxes.forEach(checkbox => {
+        selectedProducts.add(checkbox.value);
+    });
+    
+    const count = selectedProducts.size;
+    document.getElementById('selectedCount').textContent = count;
+    
+    const bulkActions = document.getElementById('bulkActions');
+    if (count > 0) {
+        bulkActions.classList.add('show');
+    } else {
+        bulkActions.classList.remove('show');
+    }
+}
+
+// Actions en lot
+function bulkInventory() {
+    if (selectedProducts.size === 0) return;
+    
+    showNotification(`Inventaire lancé pour ${selectedProducts.size} produits`, 'info');
+    // Rediriger vers l'inventaire en lot
+}
+
+function bulkExport() {
+    if (selectedProducts.size === 0) return;
+    
+    showNotification(`Export de ${selectedProducts.size} produits en cours...`, 'info');
+    // Logique d'export
+}
+
+function bulkMove() {
+    if (selectedProducts.size === 0) return;
+    
+    const newZone = prompt('Vers quelle zone déplacer ces produits ?');
+    if (newZone) {
+        showNotification(`${selectedProducts.size} produits déplacés vers la zone ${newZone}`, 'success');
+    }
+}
+
+function clearSelection() {
+    selectedProducts.clear();
+    document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAllProducts').checked = false;
+    updateSelection();
+}
+
+// Actions rapides
+function quickAdd() {
+    const code = prompt('Code produit à ajouter dans la zone {{ zone }} :');
+    if (code) {
+        showNotification(`Produit ${code} ajouté à la zone {{ zone }}`, 'success');
+    }
+}
+
+function quickInventory() {
+    const modal = new bootstrap.Modal(document.getElementById('quickInventoryModal'));
+    modal.show();
+    
+    setTimeout(() => {
+        document.getElementById('quickProductCode').focus();
+    }, 500);
+}
+
+function quickSearch() {
+    document.getElementById('productSearch').focus();
+    document.getElementById('productSearch').select();
+}
+
+// Inventaire rapide
+function addQuickItem() {
+    const code = document.getElementById('quickProductCode').value;
+    const location = document.getElementById('quickLocation').value;
+    const quantity = document.getElementById('quickQuantity').value;
+    
+    if (!code || !location || !quantity) {
+        alert('Veuillez remplir tous les champs');
+        return;
+    }
+    
+    const item = { code, location, quantity };
+    quickInventoryItems.push(item);
+    
+    updateQuickItemsList();
+    
+    // Reset form
+    document.getElementById('quickProductCode').value = '';
+    document.getElementById('quickLocation').value = '';
+    document.getElementById('quickQuantity').value = '';
+    document.getElementById('quickProductCode').focus();
+}
+
+function updateQuickItemsList() {
+    const container = document.getElementById('quickItems');
+    
+    if (quickInventoryItems.length === 0) {
+        container.innerHTML = '<small class="text-muted">Aucun élément ajouté</small>';
+        return;
+    }
+    
+    container.innerHTML = quickInventoryItems.map((item, index) => `
+        <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+            <div>
+                <strong>${item.code}</strong> - ${item.location}
+                <br><small class="text-muted">Quantité: ${item.quantity}</small>
+            </div>
+            <button class="btn btn-sm btn-outline-danger" onclick="removeQuickItem(${index})">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function removeQuickItem(index) {
+    quickInventoryItems.splice(index, 1);
+    updateQuickItemsList();
+}
+
+function saveQuickInventory() {
+    if (quickInventoryItems.length === 0) {
+        alert('Aucun élément à sauvegarder');
+        return;
+    }
+    
+    showNotification(`${quickInventoryItems.length} éléments sauvegardés`, 'success');
+    
+    // Reset
+    quickInventoryItems = [];
+    updateQuickItemsList();
+    
+    bootstrap.Modal.getInstance(document.getElementById('quickInventoryModal')).hide();
+}
+
+// Autres fonctions
+function toggleView(view) {
+    // Basculer entre vue liste et grille
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    showNotification(`Vue ${view} activée`, 'info');
+}
+
+function productHistory(code) {
+    showNotification(`Historique du produit ${code}`, 'info');
+    // Ouvrir modal d'historique
+}
+
+function showFullMap() {
+    showNotification('Ouverture du plan complet...', 'info');
+    // Ouvrir modal avec plan détaillé
+}
+
+function exportZoneData() {
+    showNotification('Export des données de la zone en cours...', 'info');
+    // Logique d'export zone complète
+}
+
+function zoneInventory() {
+    if (confirm('Lancer un inventaire complet de la zone {{ zone }} ?')) {
+        showNotification('Inventaire global de la zone lancé', 'success');
+        // Rediriger vers inventaire global
+    }
+}
+
+function printZone() {
+    window.print();
+}
+
+function loadPage(page) {
+    showNotification(`Chargement de la page ${page}...`, 'info');
+    // Logique de pagination
+}
+
+// Raccourcis clavier
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        document.getElementById('productSearch').focus();
+    }
+    
+    if (e.ctrlKey && e.key === 'a') {
+        e.preventDefault();
+        document.getElementById('selectAllProducts').click();
+    }
+    
+    if (e.key === 'Escape') {
+        clearSelection();
+    }
+});
+
+// Recherche en temps réel
+document.getElementById('productSearch').addEventListener('input', function() {
+    clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(searchProducts, 300);
+});
+</script>
+{% endblock %}

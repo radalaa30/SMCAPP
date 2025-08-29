@@ -1,0 +1,138 @@
+{# templates/stockit/test_login.html.twig #}
+{% extends 'base2.html.twig' %}
+
+
+{% block title %}Test de connexion à Stock-IT{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .result-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .status-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .screenshots {
+            margin-top: 2rem;
+        }
+        .screenshot {
+            margin-bottom: 2rem;
+        }
+        .screenshot img {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .url-info {
+            background-color: #e9ecef;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            word-wrap: break-word;
+        }
+        .session-id {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="result-container">
+        <h1>Test de connexion à Stock-IT</h1>
+        
+        <div class="status">
+            {% if result.success %}
+                <div class="status-badge status-success">
+                    <i class="fas fa-check-circle"></i> CONNEXION RÉUSSIE
+                </div>
+            {% else %}
+                <div class="status-badge status-error">
+                    <i class="fas fa-times-circle"></i> ÉCHEC DE CONNEXION
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="details">
+            <h2>Détails</h2>
+            <ul>
+                {% if result.success %}
+                    <li><strong>Message:</strong> {{ result.message }}</li>
+                    {% if result.title is defined %}
+                        <li><strong>Titre de la page après connexion:</strong> {{ result.title }}</li>
+                    {% endif %}
+                {% else %}
+                    <li><strong>Erreur:</strong> {{ result.message }}</li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <div class="url-info">
+            <h2>Informations d'URL et de session</h2>
+            
+            {% if result.initialUrl is defined %}
+                <h3>URL initiale (avant connexion)</h3>
+                <div>{{ result.initialUrl }}</div>
+                
+                {% if result.initialSessionId is defined and result.initialSessionId %}
+                    <p><strong>ID de session:</strong> <span class="session-id">{{ result.initialSessionId }}</span></p>
+                {% else %}
+                    <p><em>Aucun ID de session trouvé dans l'URL initiale</em></p>
+                {% endif %}
+            {% endif %}
+            
+            {% if result.url is defined %}
+                <h3>URL après connexion</h3>
+                <div>{{ result.url }}</div>
+                
+                {% if result.afterLoginSessionId is defined and result.afterLoginSessionId %}
+                    <p><strong>ID de session après connexion:</strong> <span class="session-id">{{ result.afterLoginSessionId }}</span></p>
+                {% else %}
+                    <p><em>Aucun ID de session trouvé dans l'URL après connexion</em></p>
+                {% endif %}
+            {% endif %}
+        </div>
+        
+        {% if screenshots|length > 0 %}
+            <div class="screenshots">
+                <h2>Captures d'écran</h2>
+                
+                {% if screenshots['avant_connexion.png'] is defined %}
+                    <div class="screenshot">
+                        <h3>Avant la connexion</h3>
+                        <img src="{{ screenshots['avant_connexion.png'] }}" alt="Avant la connexion">
+                    </div>
+                {% endif %}
+                
+                {% if screenshots['apres_connexion.png'] is defined %}
+                    <div class="screenshot">
+                        <h3>Après la connexion</h3>
+                        <img src="{{ screenshots['apres_connexion.png'] }}" alt="Après la connexion">
+                    </div>
+                {% endif %}
+                
+                {% if screenshots['erreur_connexion.png'] is defined %}
+                    <div class="screenshot">

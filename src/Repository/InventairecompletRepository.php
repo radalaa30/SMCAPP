@@ -16,28 +16,142 @@ class InventairecompletRepository extends ServiceEntityRepository
         parent::__construct($registry, Inventairecomplet::class);
     }
 
-    //    /**
-    //     * @return Inventairecomplet[] Returns an array of Inventairecomplet objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('i')
-    //            ->andWhere('i.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('i.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
-
-    //    public function findOneBySomeField($value): ?Inventairecomplet
-    //    {
-    //        return $this->createQueryBuilder('i')
-    //            ->andWhere('i.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+    /**
+     * Trouve tous les emplacements pour une cellule et une allée spécifiques
+     * 
+     * @param string $cellule Le code de cellule (C2, C3, C4)
+     * @param string $allee La lettre de l'allée (A-H)
+     * @return Inventairecomplet[]
+     */
+    public function findEmplacementsByCelluleAndAllee(string $cellule, string $allee): array
+    {
+        // Format d'emplacement attendu: "C2:A-01-00" pour Cellule C2, Allée A, Position 01, Niveau 00
+        $pattern = $cellule . ':' . $allee . '-%';
+        
+        return $this->createQueryBuilder('i')
+            ->where('i.emplacement LIKE :pattern')
+            ->setParameter('pattern', $pattern)
+            ->orderBy('i.emplacement', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+    
+    /**
+     * Vérifie si un emplacement existe
+     */
+    public function emplacementExists(string $emplacement): bool
+    {
+        return count($this->findBy(['emplacement' => $emplacement])) > 0;
+    }
+    
+    /**
+     * Récupère toutes les cellules disponibles avec leur nombre d'emplacements
+     */
+    public function findCellules(): array
+    {
+        $result = $this->createQueryBuilder('i')
+            ->select('SUBSTRING(i.emplacement, 1, 2) as cellule, COUNT(i.id) as nombre')
+            ->groupBy('cellule')
+            ->getQuery()
+            ->getResult();
+            
+        $cellules = [];
+        foreach ($result as $row) {
+            $cellules[$row['cellule']] = $row['nombre'];
+        }
+        
+        return $cellules;
+    }
+    
+    /**
+     * Récupère toutes les allées d'une cellule avec leur nombre d'emplacements
+     */
+    public function findAlleesByCellule(string $cellule): array
+    {
+        $pattern = $cellule . ':%';
+        
+        $result = $this->createQueryBuilder('i')
+            ->select('SUBSTRING(i.emplacement, 4, 1) as allee, COUNT(i.id) as nombre')
+            ->where('i.emplacement LIKE :pattern')
+            ->setParameter('pattern', $pattern)
+            ->groupBy('allee')
+            ->orderBy('allee', 'ASC')
+            ->getQuery()
+            ->getResult();
+            
+        $allees = [];
+        foreach ($result as $row) {
+            $allees[$row['allee']] = $row['nombre'];
+        }
+        
+        return $allees;
+    }
+    
+    /**
+     * Compte le nombre d'emplacements occupés pour une cellule et une allée
+     */
+    public function countOccupiedEmplacements(string $cellule, string $allee = null): int
+    {
+        $qb = $this->createQueryBuilder('i')
+            ->select('COUNT(i.id)')
+            ->where('i.emplacement LIKE :pattern')
+            ->andWhere('i.urdispo > 0 OR i.ucdispo > 0');
+            
+        if ($allee !== null) {
+            $pattern = $cellule . ':' . $allee . '-%';
+        } else {
+            $pattern = $cellule . ':%';
+        }
+        
+        $qb->setParameter('pattern', $pattern);
+        
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+    
+    /**
+     * Compte le nombre d'emplacements bloqués pour une cellule et une allée
+     */
+    public function countBlockedEmplacements(string $cellule, string $allee = null): int
+    {
+        $qb = $this->createQueryBuilder('i')
+            ->select('COUNT(i.id)')
+            ->where('i.emplacement LIKE :pattern')
+            ->andWhere('i.urbloquee > 0');
+            
+        if ($allee !== null) {
+            $pattern = $cellule . ':' . $allee . '-%';
+        } else {
+            $pattern = $cellule . ':%';
+        }
+        
+        $qb->setParameter('pattern', $pattern);
+        
+        return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+    
+    /**
+     * Recherche des emplacements par code produit
+     */
+    public function findByCodeProduit(string $codeProduit): array
+    {
+        return $this->createQueryBuilder('i')
+            ->where('i.codeprod = :codeprod')
+            ->setParameter('codeprod', $codeProduit)
+            ->orderBy('i.emplacement', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+    
+    /**
+     * Recherche des emplacements par numéro de palette
+     */
+    public function findByNoPalette(string $noPalette): array
+    {
+        return $this->createQueryBuilder('i')
+            ->where('i.nopal = :nopal')
+            ->setParameter('nopal', $noPalette)
+            ->orderBy('i.emplacement', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

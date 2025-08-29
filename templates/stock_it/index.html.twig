@@ -1,0 +1,32 @@
+{# templates/stock_it/index.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Téléchargement du rapport Stock-IT{% endblock %}
+
+{% block body %}
+<div class="container mt-4">
+    <h1>Téléchargement du rapport Stock-IT</h1>
+    
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Rapport CDSUD_SUIVI_PREPARATION_DU_JOUR</h5>
+            <p class="card-text">Cliquez sur le bouton ci-dessous pour télécharger le rapport du jour.</p>
+            
+            <div class="d-flex">
+                <a href="{{ path('stock_it_download') }}" class="btn btn-primary me-2">
+                    <i class="fas fa-download"></i> Télécharger le rapport
+                </a>
+                <a href="{{ path('stock_it_test_connection') }}" class="btn btn-outline-secondary me-2">
+                    Tester la connexion
+                </a>
+                <a href="{{ path('stock_it_status') }}" class="btn btn-outline-info me-2">
+                    Vérifier le statut
+                </a>
+                <a href="{{ path('stock_it_status') }}" class="btn btn-outline-dark">
+                    Consulter les logs
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

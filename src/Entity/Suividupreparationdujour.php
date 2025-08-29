@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use App\Repository\SuividupreparationdujourRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: SuividupreparationdujourRepository::class)]
@@ -15,67 +16,69 @@ class Suividupreparationdujour
     private ?int $id = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $CodeProduit = null;
-
+    public ?string $CodeProduit = null;
 
     #[ORM\Column(length: 100, nullable: true )]
-    private ?string $Gencode_uv = null;
+    public ?string $Gencode_uv = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $No_Palette = null;
+    public ?string $No_Palette = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $No_Pal = null;
+    public ?string $No_Pal = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Flasher = null;
+    public ?string $Flasher = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Zone = null;
+    public ?string $Zone = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Adresse = null;
+    public ?string $Adresse = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $Nb_Pal = null;
+    public ?int $Nb_Pal = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $Nb_col = null;
+    public ?int $Nb_col = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $Nb_art = null;
+    public ?int $Nb_art = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Nb_regr = null;
+    public ?string $Nb_regr = null;
    
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $No_Bl = null;
+    public ?string $No_Bl = null;
 
     #[ORM\Column]
     private ?\DateTimeImmutable $Date_liv = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $No_Cmd = null;
+    public ?string $No_Cmd = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Client = null;
+    public ?string $Client = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Statut_Cde = null;
+    public ?string $Statut_Cde = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Code_Client = null;
+    public ?string $Code_Client = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Preparateur = null;
+    public ?string $Preparateur = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    private ?string $Transporteur = null;
+    public ?string $Transporteur = null;
 
     #[ORM\Column(name:'updatedAt',type: "datetime_immutable", nullable: true)]
     private ?\DateTimeImmutable $updatedAt = null;
 
-    // Getters et Setters pour les autres propriétés
+    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    private ?\DateTimeInterface $valider = null;
+
+    // Getters et Setters
 
     public function getId(): ?int
     {
@@ -192,12 +195,12 @@ class Suividupreparationdujour
         return $this;
     }
 
-    public function getNbRegr(): ?int
+    public function getNbRegr(): ?string
     {
         return $this->Nb_regr;
     }
 
-    public function setNbRegr(?int $Nb_regr): static
+    public function setNbRegr(?string $Nb_regr): static
     {
         $this->Nb_regr = $Nb_regr;
         return $this;
@@ -291,8 +294,24 @@ class Suividupreparationdujour
         return $this;
     }
 
-    // Méthode pour la mise à jour automatique de la date de mise à jour
+    public function getUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->updatedAt;
+    }
+
+    public function getValider(): ?\DateTimeInterface
+    {
+        return $this->valider;
+    }
+
+    public function setValider(?\DateTimeInterface $valider): static
+    {
+        $this->valider = $valider;
+        return $this;
+    }
+
     /**
+     * Méthode pour la mise à jour automatique de la date de mise à jour
      * @ORM\PrePersist
      * @ORM\PreUpdate
      */
@@ -300,12 +319,4 @@ class Suividupreparationdujour
     {
         $this->updatedAt = new \DateTimeImmutable();
     }
-
-    // Getter pour updatedAt
-    public function getUpdatedAt(): ?\DateTimeImmutable
-    {
-        return $this->updatedAt;
-    }
-
-  
 }

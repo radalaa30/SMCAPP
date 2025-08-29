@@ -1,0 +1,609 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Gestion des BL en cours{% endblock %}
+
+{% block stylesheets %}
+<style>
+    .dashboard-container {
+        padding: 20px 0;
+    }
+    .card {
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        padding: 1rem 1.25rem;
+    }
+    .card-header h4 {
+        margin: 0;
+        font-weight: 600;
+        color: #343a40;
+    }
+    .card-body {
+        padding: 1.5rem;
+    }
+    .page-title {
+        margin-bottom: 20px;
+        color: #343a40;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    /* Styles pour les badges de statut */
+    .status-badge {
+        padding: 0.35em 0.65em;
+        font-size: 0.75em;
+        font-weight: 700;
+        border-radius: 0.25rem;
+        display: inline-block;
+        text-align: center;
+        min-width: 80px;
+    }
+    .status-pending {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .status-processing {
+        background-color: #17a2b8;
+        color: white;
+    }
+    .status-completed {
+        background-color: #28a745;
+        color: white;
+    }
+    /* Styles pour les cartes de statistiques */
+    .stats-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .stat-card {
+        flex: 1;
+        min-width: 200px;
+        border-radius: 8px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .stat-card-title {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .stat-card-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+    .stat-card-green {
+        background-color: #d1e7dd;
+        border-left: 4px solid #198754;
+    }
+    .stat-card-blue {
+        background-color: #cfe2ff;
+        border-left: 4px solid #0d6efd;
+    }
+    .stat-card-yellow {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+    }
+    .stat-card-cyan {
+        background-color: #d1ecf1;
+        border-left: 4px solid #17a2b8;
+    }
+    .stat-card-red {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+    }
+    /* Styles pour les filtres */
+    .filters-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+    .filters-body {
+        padding: 15px;
+    }
+    .filters-title {
+        font-weight: 600;
+        color: #495057;
+        padding: 10px 15px;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+    .filter-col {
+        flex: 1;
+        min-width: 200px;
+    }
+    .filter-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding-top: 10px;
+    }
+    /* Styles pour les actions */
+    .action-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        border-radius: 4px;
+        margin-right: 5px;
+    }
+    .view-btn {
+        color: #0d6efd;
+        border: 1px solid #0d6efd;
+        background-color: transparent;
+    }
+    .view-btn:hover {
+        background-color: #0d6efd;
+        color: white;
+    }
+    .edit-btn {
+        color: #ffc107;
+        border: 1px solid #ffc107;
+        background-color: transparent;
+    }
+    .edit-btn:hover {
+        background-color: #ffc107;
+        color: #212529;
+    }
+    .delete-btn {
+        color: #dc3545;
+        border: 1px solid #dc3545;
+        background-color: transparent;
+    }
+    .delete-btn:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+    .complete-btn {
+        color: #198754;
+        border: 1px solid #198754;
+        background-color: transparent;
+    }
+    .complete-btn:hover {
+        background-color: #198754;
+        color: white;
+    }
+    .create-btn {
+        background-color: #0d6efd;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+        text-decoration: none;
+        display: inline-block;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    .create-btn:hover {
+        background-color: #0b5ed7;
+        color: white;
+        text-decoration: none;
+    }
+    /* Styles pour les tableaux */
+    .bl-table {
+        width: 100%;
+        margin-bottom: 0;
+    }
+    .bl-table th {
+        background-color: #f2f7ff;
+        color: #495057;
+        font-weight: 600;
+        border-top: none;
+    }
+    .bl-table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f2f7ff;
+        z-index: 5;
+    }
+    .bl-table td {
+        vertical-align: middle;
+    }
+    /* Badges pour les palettes */
+    .badge-ok {
+        background-color: #17a2b8;
+        color: white;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        margin-right: 5px;
+    }
+    .badge-nok {
+        background-color: #dc3545;
+        color: white;
+        border-radius: 4px;
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    /* Pagination */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+    }
+    .pagination-info {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    .pagination {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+    .page-item {
+        margin: 0 2px;
+    }
+    .page-link {
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        color: #0d6efd;
+        text-decoration: none;
+        font-size: 0.875rem;
+    }
+    .page-link:hover {
+        background-color: #e9ecef;
+    }
+    .page-item.active .page-link {
+        background-color: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    .page-item.disabled .page-link {
+        color: #6c757d;
+        pointer-events: none;
+        background-color: #fff;
+        border-color: #dee2e6;
+    }
+    /* Sortable headers */
+    .sortable {
+        cursor: pointer;
+        position: relative;
+    }
+    .sortable:hover {
+        background-color: #e2e6ea;
+    }
+    .sortable::after {
+        content: "↕";
+        position: absolute;
+        right: 5px;
+        color: #adb5bd;
+    }
+    .sortable.asc::after {
+        content: "↑";
+        color: #495057;
+    }
+    .sortable.desc::after {
+        content: "↓";
+        color: #495057;
+    }
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="dashboard-container">
+    <div class="page-title">
+        <h1><i class="fas fa-file-invoice me-2"></i>Gestion des BL en cours</h1>
+        <a href="{{ path('app_blencours_new') }}" class="create-btn">
+            <i class="fas fa-plus-circle me-1"></i> Nouveau BL
+        </a>
+    </div>
+    
+    {# Affichage des messages flash #}
+    {% for message in app.flashes('success') %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+    
+    {% for message in app.flashes('error') %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+    
+    {# Statistiques #}
+    <div class="stats-container">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-card-title">Total BL</div>
+            <div class="stat-card-value">{{ stats.total }}</div>
+        </div>
+        <div class="stat-card stat-card-yellow">
+            <div class="stat-card-title">En attente</div>
+            <div class="stat-card-value">{{ stats.enAttente }}</div>
+        </div>
+        <div class="stat-card stat-card-cyan">
+            <div class="stat-card-title">En cours</div>
+            <div class="stat-card-value">{{ stats.enCours }}</div>
+        </div>
+        <div class="stat-card stat-card-green">
+            <div class="stat-card-title">Traités</div>
+            <div class="stat-card-value">{{ stats.traite }}</div>
+        </div>
+        <div class="stat-card stat-card-cyan">
+            <div class="stat-card-title">Picking OK</div>
+            <div class="stat-card-value">{{ stats.pickingok }}</div>
+        </div>
+        <div class="stat-card stat-card-red">
+            <div class="stat-card-title">Picking NOK</div>
+            <div class="stat-card-value">{{ stats.pickingnok }}</div>
+        </div>
+    </div>
+    
+    {# Filtres #}
+    <div class="filters-card">
+        <div class="filters-title">
+            <span><i class="fas fa-filter me-2"></i>Filtres</span>
+            <a href="#" data-bs-toggle="collapse" data-bs-target="#filters-collapse" aria-expanded="true" aria-controls="filters-collapse">
+                <i class="fas fa-chevron-down"></i>
+            </a>
+        </div>
+        <div class="collapse show" id="filters-collapse">
+            <div class="filters-body">
+                {{ form_start(filterForm) }}
+                    <div class="filter-row">
+                        <div class="filter-col">
+                            {{ form_label(filterForm.numBl) }}
+                            {{ form_widget(filterForm.numBl) }}
+                        </div>
+                        <div class="filter-col">
+                            {{ form_label(filterForm.statut) }}
+                            {{ form_widget(filterForm.statut) }}
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div class="filter-col">
+                            {{ form_label(filterForm.dateMin) }}
+                            {{ form_widget(filterForm.dateMin) }}
+                        </div>
+                        <div class="filter-col">
+                            {{ form_label(filterForm.dateMax) }}
+                            {{ form_widget(filterForm.dateMax) }}
+                        </div>
+                    </div>
+                    <div class="filter-row">
+                        <div class="filter-col">
+                            <div class="form-check">
+                                {{ form_widget(filterForm.Pickingok) }}
+                                {{ form_label(filterForm.Pickingok) }}
+                            </div>
+                        </div>
+                        <div class="filter-col">
+                            <div class="form-check">
+                                {{ form_widget(filterForm.Pickingnok) }}
+                                {{ form_label(filterForm.Pickingnok) }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-actions">
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i>Réinitialiser
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>Filtrer
+                        </button>
+                    </div>
+                {{ form_end(filterForm) }}
+            </div>
+        </div>
+    </div>
+    
+    {# Tableau des BL #}
+    <div class="card">
+        <div class="card-header">
+            <h4><i class="fas fa-list me-2"></i>Liste des BL en cours</h4>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover bl-table">
+                <thead>
+                    <tr>
+                        <th style="width: 5%">#</th>
+                        <th class="sortable {{ sortField == 'numBl' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="numBl" style="width: 15%">
+                            Numéro BL
+                        </th>
+                        <th class="sortable {{ sortField == 'statut' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="statut" style="width: 15%">
+                            Statut
+                        </th>
+                        <th class="sortable {{ sortField == 'adddate' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="adddate" style="width: 20%">
+                            Date d'ajout
+                        </th>
+                        <th style="width: 15%">Type</th>
+                        <th style="width: 30%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% if blencours is not empty %}
+                    {% for blencour in blencours %}
+                        <tr>
+                            <td>{{ blencour.id }}</td>
+                            <td><strong>{{ blencour.numBl }}</strong></td>
+                            <td>
+                                {% set statusClass = '' %}
+                                {% if blencour.statut == 'En attente' %}
+                                    {% set statusClass = 'status-pending' %}
+                                {% elseif blencour.statut == 'En cours' %}
+                                    {% set statusClass = 'status-processing' %}
+                                {% else %}
+                                    {% set statusClass = 'status-completed' %}
+                                {% endif %}
+                                <span class="status-badge {{ statusClass }}">{{ blencour.statut }}</span>
+                            </td>
+                            <td>
+                                {% if blencour.adddate %}
+                                    <i class="far fa-calendar-alt me-1"></i> {{ blencour.adddate|date('d/m/Y') }}
+                                    <br>
+                                    <small class="text-muted">{{ blencour.adddate|date('H:i:s') }}</small>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if blencour.Pickingok %}
+                                    <span class="badge-ok"><i class="fas fa-check me-1"></i>OK</span>
+                                {% endif %}
+                                {% if blencour.Pickingnok %}
+                                    <span class="badge-nok"><i class="fas fa-times me-1"></i>NOK</span>
+                                {% endif %}
+                                {% if not blencour.Pickingok and not blencour.Pickingnok %}
+                                    <span class="text-muted">Standard</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ path('app_blencours_show', {'id': blencour.id}) }}" class="btn btn-sm action-btn view-btn" title="Voir">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ path('app_blencours_edit', {'id': blencour.id}) }}" class="btn btn-sm action-btn edit-btn" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if blencour.statut != 'Traité' %}
+                                        <form method="post" action="{{ path('app_blencours_complete', {'id': blencour.id}) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir marquer ce BL comme traité ?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('complete' ~ blencour.id) }}">
+                                            <button class="btn btn-sm action-btn complete-btn" title="Marquer comme traité">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    <form method="post" action="{{ path('app_blencours_delete', {'id': blencour.id}) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce BL ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ blencour.id) }}">
+                                        <button class="btn btn-sm action-btn delete-btn" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-3">
+                            <i class="fas fa-info-circle me-2"></i>Aucun BL trouvé
+                        </td>
+                    </tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </div>
+        
+        {# Pagination #}
+        <div class="pagination-container">
+            <div class="pagination-info">
+                Affichage de <strong>{{ blencours|length }}</strong> BL sur <strong>{{ totalItems }}</strong> au total
+            </div>
+            
+            <nav aria-label="Page navigation">
+                <ul class="pagination">
+                    <li class="page-item {{ currentPage == 1 ? 'disabled' : '' }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item {{ currentPage == 1 ? 'disabled' : '' }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': currentPage - 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    
+                    {% for i in max(1, currentPage - 2)..min(totalPages, currentPage + 2) %}
+                        <li class="page-item {{ currentPage == i ? 'active' : '' }}">
+                            <a class="page-link" href="{{ path('app_blencours_index', {'page': i, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                                {{ i }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                    
+                    <li class="page-item {{ currentPage == totalPages ? 'disabled' : '' }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': currentPage + 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item {{ currentPage == totalPages ? 'disabled' : '' }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': totalPages, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Gestion du tri des colonnes
+        const sortableHeaders = document.querySelectorAll('.sortable');
+        
+        sortableHeaders.forEach(header => {
+            header.addEventListener('click', function() {
+                const sortField = this.getAttribute('data-sort');
+                let direction = 'ASC';
+                
+                if (this.classList.contains('asc')) {
+                    direction = 'DESC';
+                } else if (this.classList.contains('desc')) {
+                    direction = 'ASC';
+                }
+                
+                window.location.href = updateUrlParameter(window.location.href, 'sort', sortField);
+                window.location.href = updateUrlParameter(window.location.href, 'direction', direction);
+            });
+        });
+        
+        // Fonction pour mettre à jour les paramètres d'URL
+        function updateUrlParameter(url, param, value) {
+            const regex = new RegExp('([?&])' + param + '=.*?(&|$)', 'i');
+            const separator = url.indexOf('?') !== -1 ? '&' : '?';
+            
+            if (url.match(regex)) {
+                return url.replace(regex, '$1' + param + '=' + value + '$2');
+            } else {
+                return url + separator + param + '=' + value;
+            }
+        }
+        
+        // Mise à jour rapide du statut avec confirmation
+        const completeButtons = document.querySelectorAll('.complete-btn');
+        
+        completeButtons.forEach(button => {
+            button.addEventListener('click', function(event) {
+                if (!confirm('Êtes-vous sûr de vouloir marquer ce BL comme traité ?')) {
+                    event.preventDefault();
+                }
+            });
+        });
+        
+        // Mise à jour des filtres
+        const resetButton = document.querySelector('button[type="reset"]');
+        
+        if (resetButton) {
+            resetButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                window.location.href = '{{ path('app_blencours_index') }}';
+            });
+        }
+    });
+</script>
+{% endblock %}

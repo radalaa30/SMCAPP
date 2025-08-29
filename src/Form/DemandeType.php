@@ -17,9 +17,9 @@ class DemandeType extends AbstractType
         $builder
         >add('adresse', TextType::class, [
             'attr' => [
-                'onpaste' => 'return false;',
-                'oncopy' => 'return false;',
-                'oncut' => 'return false;',
+                //'onpaste' => 'return false;',
+                //'oncopy' => 'return false;',
+                //'oncut' => 'return false;',
             ]
         ])
         ->add('save', ButtonType::class, [

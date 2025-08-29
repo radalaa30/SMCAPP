@@ -1,0 +1,163 @@
+{# templates/automation/form.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Automatisation avec Puppeteer{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .automation-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .result-container {
+            margin-top: 2rem;
+            display: none;
+            padding: 1rem;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 1rem 0;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="automation-container">
+        <h1>Automatisation d'impression avec Puppeteer</h1>
+        <p>Utilisez ce formulaire pour automatiser le clic sur un bouton d'impression sur un site web.</p>
+        
+        <form id="automationForm">
+            <div class="form-group">
+                <label for="url">URL du site*</label>
+                <input type="url" id="url" name="url" class="form-control" required 
+                       placeholder="https://exemple.com/page">
+            </div>
+            
+            <div class="form-group">
+                <label for="username">Nom d'utilisateur (si requis)</label>
+                <input type="text" id="username" name="username" class="form-control"
+                       placeholder="Nom d'utilisateur pour se connecter">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Mot de passe (si requis)</label>
+                <input type="password" id="password" name="password" class="form-control"
+                       placeholder="Mot de passe pour se connecter">
+            </div>
+            
+            <div class="form-group">
+                <label for="buttonSelector">Sélecteur CSS du bouton d'impression</label>
+                <input type="text" id="buttonSelector" name="buttonSelector" class="form-control"
+                       value="button[id=&quot;printButton&quot;]" 
+                       placeholder="Exemple: button[id=&quot;printButton&quot;]">
+                <small class="form-text text-muted">
+                    Sélecteur CSS pour identifier le bouton. Exemples:
+                    <ul>
+                        <li>button[id="printButton"]</li>
+                        <li>button:contains("Imprimer")</li>
+                        <li>.print-btn</li>
+                    </ul>
+                </small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Lancer l'automatisation</button>
+        </form>
+        
+        <div class="loading">
+            <p>Automatisation en cours... Veuillez patienter.</p>
+            <div class="spinner-border" role="status">
+                <span class="sr-only">Chargement...</span>
+            </div>
+        </div>
+        
+        <div id="resultContainer" class="result-container">
+            <h3>Résultat</h3>
+            <pre id="resultOutput"></pre>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('automationForm');
+            const loading = document.querySelector('.loading');
+            const resultContainer = document.getElementById('resultContainer');
+            const resultOutput = document.getElementById('resultOutput');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Récupérer les valeurs du formulaire
+                const formData = {
+                    url: document.getElementById('url').value,
+                    buttonSelector: document.getElementById('buttonSelector').value
+                };
+                
+                // Ajouter les champs optionnels s'ils sont remplis
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                if (username) formData.username = username;
+                if (password) formData.password = password;
+                
+                // Afficher le chargement
+                loading.style.display = 'block';
+                resultContainer.style.display = 'none';
+                
+                // Envoyer la requête
+                fetch('{{ path('app_automate_print') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify(formData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Cacher le chargement
+                    loading.style.display = 'none';
+                    
+                    // Afficher le résultat
+                    resultContainer.style.display = 'block';
+                    resultOutput.textContent = JSON.stringify(data, null, 2);
+                    
+                    if (data.success) {
+                        resultContainer.className = 'result-container success';
+                    } else {
+                        resultContainer.className = 'result-container error';
+                    }
+                })
+                .catch(error => {
+                    // Cacher le chargement
+                    loading.style.display = 'none';
+                    
+                    // Afficher l'erreur
+                    resultContainer.style.display = 'block';
+                    resultContainer.className = 'result-container error';
+                    resultOutput.textContent = 'Erreur : ' + error.message;
+                });
+            });
+        });
+    </script>
+{% endblock %}
