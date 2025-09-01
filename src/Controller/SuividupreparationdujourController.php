@@ -333,13 +333,15 @@ class SuividupreparationdujourController extends AbstractController
         );
     }
 
-    /** NOUVEAU : par transporteur */
+    /** Transporteurs SANS LIV */
     private function getStatsParTransporteur(SuividupreparationdujourRepository $repository, \DateTime $startOfDay, \DateTime $endOfDay): array
     {
         return $this->executeStatsQuery(
             $repository,
             ['s.Transporteur'],
-            's.Transporteur IS NOT NULL AND s.Transporteur != \'\'',
+            "s.Transporteur IS NOT NULL 
+             AND s.Transporteur != '' 
+             AND s.Transporteur != 'LIV'",
             null,
             $startOfDay,
             $endOfDay
@@ -402,7 +404,7 @@ class SuividupreparationdujourController extends AbstractController
         return $data;
     }
 
-    /** NOUVEAU : jeu de données pour le graphe Transport */
+    /** Jeu de données pour le graphe Transport */
     private function prepareDataTransporteurs(array $stats): array
     {
         $data = [

@@ -10,79 +10,127 @@
         :root {
             --rack-blue: #4472C4;
             --rack-border: #305496;
-            --free-space: white;
+            --free-space: #ffffff;
             --occupied-space: #92D050;
-            --blocked-space: #FF0000;
+            --blocked-space: #FF3B30;
             --header-orange: #FFC000;
             --en-sortie: #FF99CC;
             --probleme-color: #8B0000;
+
+            /* Tailles ajustables */
+            --cell-width: 100px;
+            --cell-height: 60px;
+            --sep-width: 12px;          /* ⬅️ épaisseur de la lisse bleue */
+            --sep-radius: 3px;
         }
 
         body { background-color: #f5f7fa; }
         .container-emplacements { margin-top: 20px; overflow-x: auto; padding: 10px; }
-        .form-selection { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .cellule-vue { border: 2px solid #000; padding: 20px; margin-bottom: 30px; background-color: #fff; }
-        .cellule-header { background-color: #343a40; color: white; padding: 12px; font-weight: bold; text-align: center; margin-bottom: 20px; font-size: 1.2rem; }
-        .allee-content { display: flex; flex-direction: column; }
-        .cote-container { margin-bottom: 20px; }
-        .cote-label { background-color: #E7E6E6; padding: 8px; font-weight: bold; text-align: left; border: 1px solid #000; margin-bottom: 0; }
+        .form-selection { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .cellule-vue { border: 2px solid #000; padding: 16px; margin-bottom: 30px; background-color: #fff; }
+        .cellule-header { background-color: #343a40; color: #fff; padding: 12px; font-weight: 600; text-align: center; margin-bottom: 16px; font-size: 1.1rem; letter-spacing: .2px; }
+        .allee-content { display: flex; flex-direction: column; gap: 18px; }
+        .cote-container { }
+        .cote-label { background-color: #E7E6E6; padding: 8px 10px; font-weight: 600; text-align: left; border: 1px solid #000; margin-bottom: 4px; }
         .positions-row { display: flex; flex-direction: row; border-left: 2px solid #000; border-right: 2px solid #000; }
-        .position-group { display: flex; flex-direction: row; border-right: 2px solid var(--rack-blue); }
-        .position-group:last-child { border-right: none; }
-        .position-column { display: flex; flex-direction: column; width: 100px; }
-        .position-header { height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; background-color: var(--header-orange); border: 1px solid #000; border-top: 2px solid #000; border-bottom: 1px solid #000; font-size: 0.9rem; }
-        .niveau-cell { height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; font-size: 13px; font-weight: bold; position: relative; padding: 3px; cursor: pointer; transition: all 0.3s ease; background-clip: padding-box; }
-        .niveau-cell:hover { transform: scale(1.02); box-shadow: 0 0 8px rgba(0,0,0,0.3); z-index: 10; }
-        .niveau-info { font-size: 10px; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
+
+        /* Chaque groupe = 4 positions + 1 fine séparation (sauf le dernier) */
+        .position-group { display: flex; flex-direction: row; /* plus de bordure bleue ici */ }
+        .position-column { display: flex; flex-direction: column; width: var(--cell-width); }
+
+        .position-header {
+            height: 28px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600;
+            background-color: var(--header-orange);
+            border: 1px solid #000;
+            border-top: 2px solid #000; border-bottom: 1px solid #000;
+            font-size: 0.9rem;
+            line-height: 1;
+        }
+
+        .niveau-cell {
+            height: var(--cell-height);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 1px solid #000;
+            font-size: 13px; font-weight: 700;
+            position: relative; padding: 3px;
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease;
+            background-clip: padding-box;
+        }
+        .niveau-cell:hover { transform: scale(1.02); box-shadow: 0 0 8px rgba(0,0,0,0.25); z-index: 10; }
+
+        .niveau-info { font-size: 10px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
         .vide { background-color: var(--free-space); }
-        .plein { background-color: var(--occupied-space); color: black; }
-        .plein.multiple { background-color: #1B6E1B; color: white; }
-        .rouge { background-color: var(--blocked-space); color: white; }
-        .enSortie { background-color: var(--en-sortie); color: black; }
-        .enSortie.multiple { background-color: #CC5283; color: white; }
-        .probleme { background-color: var(--probleme-color); color: white; border: 3px solid #FFD700; }
+        .plein { background-color: var(--occupied-space); color: #111; }
+        .plein.multiple { background-color: #1B6E1B; color: #fff; }
+        .rouge { background-color: var(--blocked-space); color: #fff; }
+        .enSortie { background-color: var(--en-sortie); color: #111; }
+        .enSortie.multiple { background-color: #CC5283; color: #fff; }
+        .probleme { background-color: var(--probleme-color); color: #fff; border: 3px solid #FFD700; }
         .probleme:hover { border-color: #FFA500; }
         .probleme-icon { position: absolute; top: 2px; right: 2px; color: #FFD700; font-size: 14px; }
-        .bleu { background-color: var(--rack-blue); color: white; }
 
-        /* On garde les .info-box dans le DOM mais on NE les affiche PLUS dans le flux (évite le clipping) */
+        /* Ancienne "bleu" = maintenant une fine lisse de séparation */
+        .separator-column {
+            width: var(--sep-width);
+            display: flex; flex-direction: column;
+            align-items: stretch; justify-content: stretch;
+            padding: 0 2px;  /* un soupçon d’air */
+        }
+        .separator-cell {
+            height: var(--cell-height);
+            background-color: var(--rack-blue);
+            border-radius: var(--sep-radius);
+            /* visuel seulement */
+            border: 0;
+            pointer-events: none;
+            user-select: none;
+        }
+        .separator-header { height: 28px; } /* espace pour aligner l’entête */
+
+        /* On garde les .info-box dans le DOM mais hors flux (évite le clipping) */
         .niveau-cell .info-box { display: none !important; }
 
         /* Tooltip global flottant (hors conteneurs à overflow) */
         #hoverTooltip {
-            position: fixed;
-            display: none;
-            background-color: #343a40;
-            color: white;
-            border: 1px solid #adb5bd;
-            border-radius: 6px;
-            padding: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.2);
-            z-index: 5000;
-            max-width: 360px;
-            pointer-events: none; /* ne capte pas la souris */
-            font-size: 14px;
-            line-height: 1.35;
+            position: fixed; display: none;
+            background-color: #343a40; color: #fff;
+            border: 1px solid #adb5bd; border-radius: 6px;
+            padding: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.2);
+            z-index: 5000; max-width: 360px; pointer-events: none;
+            font-size: 14px; line-height: 1.35;
         }
-        #hoverTooltip strong { color: #ffc107; font-weight: bold; }
+        #hoverTooltip strong { color: #ffc107; font-weight: 700; }
 
         .legende { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin-top: 20px; }
-        .legende-item { display: flex; align-items: center; margin-bottom: 8px; }
-        .legende-couleur { width: 25px; height: 25px; margin-right: 12px; border: 1px solid #adb5bd; border-radius: 3px; }
+        .legende-item { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+        .legende-couleur { width: 25px; height: 25px; border: 1px solid #adb5bd; border-radius: 3px; }
         .legende-couleur.rack { background-color: var(--rack-blue); }
         .legende-couleur.orange { background-color: var(--header-orange); }
         .legende-couleur.enSortie { background-color: var(--en-sortie); }
         .legende-couleur.probleme { background-color: var(--probleme-color); border: 3px solid #FFD700; }
-        .niveau-adresse { font-size: 11px; font-weight: normal; color: #666; position: absolute; bottom: 2px; right: 2px; }
+        .niveau-adresse { font-size: 11px; font-weight: 500; color: #666; position: absolute; bottom: 2px; right: 2px; }
 
         /* Modal */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; border-radius: 8px; }
+        .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; max-width: 720px; border-radius: 8px; }
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .close:hover { color: black; }
 
         .historique-btn { position: fixed; bottom: 20px; right: 20px; background-color: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 999; }
         .historique-btn:hover { background-color: #0056b3; color: white; text-decoration: none; }
+
+        /* Un peu plus compact sur petits écrans */
+        @media (max-width: 1200px) {
+            :root { --cell-width: 88px; --cell-height: 54px; }
+            .position-header { font-size: .85rem; height: 26px; }
+        }
+        @media (max-width: 992px) {
+            :root { --cell-width: 80px; --cell-height: 50px; --sep-width: 5px; }
+            .cellule-header { font-size: 1rem; }
+        }
     </style>
 {% endblock %}
 
@@ -96,7 +144,6 @@
             celluleSelect.addEventListener('change', function() {
                 document.getElementById('form-selection').submit();
             });
-
             alleeSelect.addEventListener('change', function() {
                 document.getElementById('form-selection').submit();
             });
@@ -111,6 +158,7 @@
                 cell.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const emplacement = this.dataset.emplacement;
+                    if (!emplacement) return; // ignore les séparateurs
                     document.getElementById('problemEmplacement').value = emplacement || '';
                     modal.style.display = 'block';
                 });
@@ -123,10 +171,7 @@
 
                 fetch('{{ path('app_probleme_signaler') }}', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ emplacement, description })
                 })
                 .then(r => r.json())
@@ -156,7 +201,6 @@
 
             function positionTooltipRelativeToCell(cell) {
                 const rect = cell.getBoundingClientRect();
-                // Pré-positionnement pour mesurer le tooltip
                 tooltip.style.left = '0px';
                 tooltip.style.top = '0px';
                 tooltip.style.visibility = 'hidden';
@@ -166,17 +210,11 @@
                 const vw = window.innerWidth;
                 const vh = window.innerHeight;
 
-                let left = rect.right + 12; // par défaut à droite
+                let left = rect.right + 12;
                 let top = rect.top;
 
-                // Flip à gauche si ça dépasse à droite
-                if (left + tRect.width > vw - 8) {
-                    left = rect.left - tRect.width - 12;
-                }
-                // Clamp vertical
-                if (top + tRect.height > vh - 8) {
-                    top = Math.max(8, vh - tRect.height - 8);
-                }
+                if (left + tRect.width > vw - 8) left = rect.left - tRect.width - 12;
+                if (top + tRect.height > vh - 8) top = Math.max(8, vh - tRect.height - 8);
                 if (top < 8) top = 8;
 
                 tooltip.style.left = left + 'px';
@@ -187,19 +225,13 @@
             function attachTooltip(cell) {
                 const innerBox = cell.querySelector('.info-box');
                 if (!innerBox) return;
-
                 cell.addEventListener('mouseenter', () => {
                     tooltip.innerHTML = innerBox.innerHTML;
                     positionTooltipRelativeToCell(cell);
                 });
-
-                // Reposition si l'utilisateur fait défiler pendant le hover
                 cell.addEventListener('mousemove', () => {
-                    if (tooltip.style.display === 'block') {
-                        positionTooltipRelativeToCell(cell);
-                    }
+                    if (tooltip.style.display === 'block') positionTooltipRelativeToCell(cell);
                 });
-
                 cell.addEventListener('mouseleave', () => {
                     tooltip.style.display = 'none';
                     tooltip.innerHTML = '';
@@ -208,7 +240,6 @@
 
             document.querySelectorAll('.niveau-cell').forEach(attachTooltip);
 
-            // Re-clamp si resize
             window.addEventListener('resize', () => {
                 if (tooltip.style.display === 'block') {
                     const hovered = document.querySelector('.niveau-cell:hover');
@@ -244,7 +275,6 @@
                                 <div class="form-group">
                                     <label for="allee">Allée:</label>
 
-                                    {# Si besoin de compléter dynamiquement C4 avec F/G/H, on garde cette logique #}
                                     {% set alleesToShow = cellules[celluleSelectionnee].allees %}
                                     {% if celluleSelectionnee in ['C4','4'] %}
                                         {% set alleesToShow = alleesToShow|merge(['F','G','H']) %}
@@ -311,12 +341,6 @@
                                                                             {% if infos.multiple %}
                                                                                 <div class="niveau-info">({{ infos.count }} pal.)</div>
                                                                             {% endif %}
-                                                                        {% else %}
-                                                                            <span class="niveau-adresse">{{ position }}-{{ niveau }}</span>
-                                                                        {% endif %}
-
-                                                                        {# Info HTML (cachée) copiée dans le tooltip global #}
-                                                                        {% if infos.plein %}
                                                                             <div class="info-box">
                                                                                 <p><strong>Emplacement:</strong> {{ infos.code }}</p>
                                                                                 {% if infos.multiple %}
@@ -347,6 +371,8 @@
                                                                                     <p><strong class="text-danger">⚠️ Problème signalé</strong></p>
                                                                                 {% endif %}
                                                                             </div>
+                                                                        {% else %}
+                                                                            <span class="niveau-adresse">{{ position }}-{{ niveau }}</span>
                                                                         {% endif %}
                                                                     </div>
                                                                 {% else %}
@@ -359,11 +385,13 @@
                                                         </div>
                                                     {% endif %}
                                                 {% endfor %}
-                                                {% if chunkStart + 3 < positionsPair|length - 1 %}
-                                                    <div class="position-column">
-                                                        <div class="position-header"></div>
-                                                        {% for niveau in 4..0 %}
-                                                            <div class="niveau-cell bleu"></div>
+
+                                                {# Fine séparation bleue entre blocs de 4 (sauf tout dernier bloc) #}
+                                                {% if chunkStart + 4 < positionsPair|length %}
+                                                    <div class="separator-column" aria-hidden="true">
+                                                        <div class="separator-header"></div>
+                                                        {% for _ in 4..0 %}
+                                                            <div class="separator-cell"></div>
                                                         {% endfor %}
                                                     </div>
                                                 {% endif %}
@@ -413,12 +441,7 @@
                                                                             {% if infos.multiple %}
                                                                                 <div class="niveau-info">({{ infos.count }} pal.)</div>
                                                                             {% endif %}
-                                                                        {% else %}
-                                                                            <span class="niveau-adresse">{{ position }}-{{ niveau }}</span>
-                                                                        {% endif %}
-
-                                                                        <div class="info-box">
-                                                                            {% if infos.plein %}
+                                                                            <div class="info-box">
                                                                                 <p><strong>Emplacement:</strong> {{ infos.code }}</p>
                                                                                 {% if infos.multiple %}
                                                                                     <p><strong>Nombre de palettes:</strong> {{ infos.count }}</p>
@@ -447,11 +470,10 @@
                                                                                 {% if infos.probleme %}
                                                                                     <p><strong class="text-danger">⚠️ Problème signalé</strong></p>
                                                                                 {% endif %}
-                                                                            {% else %}
-                                                                                <p><strong>Emplacement:</strong> {{ celluleSelectionnee }}:{{ alleeSelectionnee }}-{{ paddedPosition }}-{{ niveau }}</p>
-                                                                                <p>Statut : vide</p>
-                                                                            {% endif %}
-                                                                        </div>
+                                                                            </div>
+                                                                        {% else %}
+                                                                            <span class="niveau-adresse">{{ position }}-{{ niveau }}</span>
+                                                                        {% endif %}
                                                                     </div>
                                                                 {% else %}
                                                                     <div class="niveau-cell vide" data-emplacement="{{ celluleSelectionnee }}:{{ alleeSelectionnee }}-{{ paddedPosition }}-{{ niveau }}">
@@ -463,11 +485,13 @@
                                                         </div>
                                                     {% endif %}
                                                 {% endfor %}
-                                                {% if chunkStart + 3 < positionsImpair|length - 1 %}
-                                                    <div class="position-column">
-                                                        <div class="position-header"></div>
-                                                        {% for niveau in 4..0 %}
-                                                            <div class="niveau-cell bleu"></div>
+
+                                                {# Fine séparation bleue entre blocs de 4 (sauf tout dernier bloc) #}
+                                                {% if chunkStart + 4 < positionsImpair|length %}
+                                                    <div class="separator-column" aria-hidden="true">
+                                                        <div class="separator-header"></div>
+                                                        {% for _ in 4..0 %}
+                                                            <div class="separator-cell"></div>
                                                         {% endfor %}
                                                     </div>
                                                 {% endif %}
@@ -486,14 +510,14 @@
 
                 <div class="legende">
                     <h5>Légende</h5>
-                    <div class="legende-item"><div class="legende-couleur vide"></div><span>Emplacement vide</span></div>
-                    <div class="legende-item"><div class="legende-couleur plein"></div><span>Emplacement occupé (le chiffre indique UV total)</span></div>
-                    <div class="legende-item"><div class="legende-couleur plein multiple"></div><span>Emplacement avec plusieurs palettes</span></div>
-                    <div class="legende-item"><div class="legende-couleur rouge"></div><span>Palette bloquée</span></div>
+                    <div class="legende-item"><div class="legende-couleur vide" style="background:#fff;"></div><span>Emplacement vide</span></div>
+                    <div class="legende-item"><div class="legende-couleur plein" style="background:var(--occupied-space);"></div><span>Emplacement occupé (le chiffre = UV total)</span></div>
+                    <div class="legende-item"><div class="legende-couleur plein multiple" style="background:#1B6E1B;"></div><span>Emplacement avec plusieurs palettes</span></div>
+                    <div class="legende-item"><div class="legende-couleur rouge" style="background:var(--blocked-space);"></div><span>Palette bloquée</span></div>
                     <div class="legende-item"><div class="legende-couleur enSortie"></div><span>Palette en sortie</span></div>
-                    <div class="legende-item"><div class="legende-couleur enSortie multiple"></div><span>Plusieurs palettes en sortie</span></div>
-                    <div class="legende-item"><div class="legende-couleur probleme"></div><span>Problème signalé</span></div>
-                    <div class="legende-item"><div class="legende-couleur rack"></div><span>Structure du rack</span></div>
+                    <div class="legende-item"><div class="legende-couleur enSortie multiple" style="background:#CC5283;"></div><span>Plusieurs palettes en sortie</span></div>
+                    <div class="legende-item"><div class="legende-couleur probleme" style="background:var(--probleme-color); border:3px solid #FFD700;"></div><span>Problème signalé</span></div>
+                    <div class="legende-item"><div class="legende-couleur rack"></div><span>Lisse de séparation (tous les 4 emplacements)</span></div>
                     <div class="legende-item"><div class="legende-couleur orange"></div><span>En-tête position</span></div>
                 </div>
             </div>
