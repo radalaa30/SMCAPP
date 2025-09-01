@@ -84,7 +84,7 @@ class EmplacementController extends AbstractController
                     'enSortie' => false,
                     'multiple' => false,
                     'count' => 0,
-                    'nopal' => [],
+                    'nopalinfo' => [],      // <-- numéro palette
                     'codeprod' => [],
                     'designation' => [],
                     'ucdispo' => 0,
@@ -106,7 +106,7 @@ class EmplacementController extends AbstractController
                     'enSortie' => false,
                     'multiple' => false,
                     'count' => 0,
-                    'nopal' => [],
+                    'nopalinfo' => [],      // <-- numéro palette
                     'codeprod' => [],
                     'designation' => [],
                     'ucdispo' => 0,
@@ -147,7 +147,7 @@ class EmplacementController extends AbstractController
                 'enSortie'    => $isEnSortie || $cur['enSortie'],
                 'multiple'    => $count > 1,
                 'count'       => $count,
-                'nopal'       => array_merge($cur['nopal'],       [$e->getNopal()]),
+                'nopalinfo'   => array_merge($cur['nopalinfo'], [$e->getNopalinfo()]),
                 'codeprod'    => array_merge($cur['codeprod'],    [$e->getCodeprod()]),
                 'designation' => array_merge($cur['designation'], [$e->getDsignprod()]),
                 'ucdispo'     => $cur['ucdispo']    + $e->getUcdispo(),
@@ -192,7 +192,7 @@ class EmplacementController extends AbstractController
             // Problème générique (emplacement vide)
             $probleme = new Probleme();
             $probleme->setEmplacement($emplacement);
-            $probleme->setNopal('N/A');
+            $probleme->setNopalinfo('N/A');
             $probleme->setCodeprod('N/A');
             $probleme->setDsignprod('Emplacement vide');
             $probleme->setDescription($description);
@@ -211,7 +211,7 @@ class EmplacementController extends AbstractController
             foreach ($inventaires as $inv) {
                 $probleme = new Probleme();
                 $probleme->setEmplacement($emplacement);
-                $probleme->setNopal($inv->getNopal());
+                $probleme->setNopalinfo($inv->getNopalinfo());
                 $probleme->setCodeprod($inv->getCodeprod());
                 $probleme->setDsignprod($inv->getDsignprod());
                 $probleme->setDescription($description);
@@ -287,6 +287,26 @@ class EmplacementController extends AbstractController
             $probleme->setCommentaire($commentaire);
         }
 
+        $em->flush();
+
+        return new JsonResponse(['success' => true]);
+    }
+
+    #[Route('/probleme/{id}/supprimer', name: 'app_probleme_supprimer', methods: ['POST'])]
+    public function supprimerProbleme(
+        Probleme $probleme,
+        Request $request,
+        EntityManagerInterface $em
+    ): JsonResponse {
+        // Récupère le token CSRF depuis le JSON
+        $data = json_decode($request->getContent(), true) ?? [];
+        $token = (string) ($data['_token'] ?? '');
+
+        if (!$this->isCsrfTokenValid('delete_probleme_' . $probleme->getId(), $token)) {
+            return new JsonResponse(['success' => false, 'error' => 'Token CSRF invalide'], 403);
+        }
+
+        $em->remove($probleme);
         $em->flush();
 
         return new JsonResponse(['success' => true]);

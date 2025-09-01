@@ -15,9 +15,9 @@
             --blocked-space: #FF0000;
             --header-orange: #FFC000;
             --en-sortie: #FF99CC;
-            --probleme-color: #8B0000;  /* Rouge foncé pour les problèmes */
+            --probleme-color: #8B0000;
         }
-        
+
         body { background-color: #f5f7fa; }
         .container-emplacements { margin-top: 20px; overflow-x: auto; padding: 10px; }
         .form-selection { background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -31,7 +31,7 @@
         .position-group:last-child { border-right: none; }
         .position-column { display: flex; flex-direction: column; width: 100px; }
         .position-header { height: 30px; display: flex; align-items: center; justify-content: center; font-weight: bold; background-color: var(--header-orange); border: 1px solid #000; border-top: 2px solid #000; border-bottom: 1px solid #000; font-size: 0.9rem; }
-        .niveau-cell { height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; font-size: 13px; font-weight: bold; position: relative; padding: 3px; cursor: pointer; transition: all 0.3s ease; }
+        .niveau-cell { height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #000; font-size: 13px; font-weight: bold; position: relative; padding: 3px; cursor: pointer; transition: all 0.3s ease; background-clip: padding-box; }
         .niveau-cell:hover { transform: scale(1.02); box-shadow: 0 0 8px rgba(0,0,0,0.3); z-index: 10; }
         .niveau-info { font-size: 10px; font-weight: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; }
         .vide { background-color: var(--free-space); }
@@ -44,11 +44,29 @@
         .probleme:hover { border-color: #FFA500; }
         .probleme-icon { position: absolute; top: 2px; right: 2px; color: #FFD700; font-size: 14px; }
         .bleu { background-color: var(--rack-blue); color: white; }
-        .info-box { display: none; position: absolute; background-color: #343a40; color: white; border: 1px solid #adb5bd; border-radius: 5px; padding: 12px; z-index: 100; width: 300px; box-shadow: 0 5px 15px rgba(0,0,0,0.35); left: 105px; top: 0; }
-        .niveau-cell:hover .info-box { display: block; }
+
+        /* On garde les .info-box dans le DOM mais on NE les affiche PLUS dans le flux (évite le clipping) */
+        .niveau-cell .info-box { display: none !important; }
+
+        /* Tooltip global flottant (hors conteneurs à overflow) */
+        #hoverTooltip {
+            position: fixed;
+            display: none;
+            background-color: #343a40;
+            color: white;
+            border: 1px solid #adb5bd;
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.2);
+            z-index: 5000;
+            max-width: 360px;
+            pointer-events: none; /* ne capte pas la souris */
+            font-size: 14px;
+            line-height: 1.35;
+        }
+        #hoverTooltip strong { color: #ffc107; font-weight: bold; }
+
         .legende { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin-top: 20px; }
-        .info-box strong { color: #ffc107; font-weight: bold; }
-        .info-box p { margin-bottom: 6px; font-size: 14px; line-height: 1.4; }
         .legende-item { display: flex; align-items: center; margin-bottom: 8px; }
         .legende-couleur { width: 25px; height: 25px; margin-right: 12px; border: 1px solid #adb5bd; border-radius: 3px; }
         .legende-couleur.rack { background-color: var(--rack-blue); }
@@ -56,10 +74,13 @@
         .legende-couleur.enSortie { background-color: var(--en-sortie); }
         .legende-couleur.probleme { background-color: var(--probleme-color); border: 3px solid #FFD700; }
         .niveau-adresse { font-size: 11px; font-weight: normal; color: #666; position: absolute; bottom: 2px; right: 2px; }
+
+        /* Modal */
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); }
         .modal-content { background-color: #fefefe; margin: 15% auto; padding: 20px; border: 1px solid #888; width: 50%; border-radius: 8px; }
         .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
         .close:hover { color: black; }
+
         .historique-btn { position: fixed; bottom: 20px; right: 20px; background-color: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); z-index: 999; }
         .historique-btn:hover { background-color: #0056b3; color: white; text-decoration: none; }
     </style>
@@ -71,37 +92,35 @@
         document.addEventListener('DOMContentLoaded', function() {
             const celluleSelect = document.getElementById('cellule');
             const alleeSelect = document.getElementById('allee');
-            
+
             celluleSelect.addEventListener('change', function() {
                 document.getElementById('form-selection').submit();
             });
-            
+
             alleeSelect.addEventListener('change', function() {
                 document.getElementById('form-selection').submit();
             });
-            
-            // Gestion du modal
+
+            // --- Modal signalement ---
             const modal = document.getElementById('problemModal');
             const span = document.getElementsByClassName('close')[0];
             span.onclick = function() { modal.style.display = 'none'; }
             window.onclick = function(event) { if (event.target == modal) modal.style.display = 'none'; }
-            
-            // Clic sur tous les emplacements
+
             document.querySelectorAll('.niveau-cell').forEach(function(cell) {
                 cell.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const emplacement = this.dataset.emplacement;
-                    document.getElementById('problemEmplacement').value = emplacement;
+                    document.getElementById('problemEmplacement').value = emplacement || '';
                     modal.style.display = 'block';
                 });
             });
-            
-            // Envoi du signalement
+
             document.getElementById('problemForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const emplacement = document.getElementById('problemEmplacement').value;
                 const description = document.getElementById('problemDescription').value;
-                
+
                 fetch('{{ path('app_probleme_signaler') }}', {
                     method: 'POST',
                     headers: {
@@ -113,7 +132,7 @@
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        const cell = document.querySelector(`.niveau-cell[data-emplacement="${emplacement}"]`);
+                        const cell = document.querySelector(`.niveau-cell[data-emplacement="${CSS.escape(emplacement)}"]`);
                         if (cell) {
                             cell.classList.add('probleme');
                             if (!cell.querySelector('.probleme-icon')) {
@@ -131,6 +150,71 @@
                 })
                 .catch(() => alert('Erreur lors du signalement'));
             });
+
+            // --- Tooltip global hors overflow ---
+            const tooltip = document.getElementById('hoverTooltip');
+
+            function positionTooltipRelativeToCell(cell) {
+                const rect = cell.getBoundingClientRect();
+                // Pré-positionnement pour mesurer le tooltip
+                tooltip.style.left = '0px';
+                tooltip.style.top = '0px';
+                tooltip.style.visibility = 'hidden';
+                tooltip.style.display = 'block';
+
+                const tRect = tooltip.getBoundingClientRect();
+                const vw = window.innerWidth;
+                const vh = window.innerHeight;
+
+                let left = rect.right + 12; // par défaut à droite
+                let top = rect.top;
+
+                // Flip à gauche si ça dépasse à droite
+                if (left + tRect.width > vw - 8) {
+                    left = rect.left - tRect.width - 12;
+                }
+                // Clamp vertical
+                if (top + tRect.height > vh - 8) {
+                    top = Math.max(8, vh - tRect.height - 8);
+                }
+                if (top < 8) top = 8;
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.visibility = 'visible';
+            }
+
+            function attachTooltip(cell) {
+                const innerBox = cell.querySelector('.info-box');
+                if (!innerBox) return;
+
+                cell.addEventListener('mouseenter', () => {
+                    tooltip.innerHTML = innerBox.innerHTML;
+                    positionTooltipRelativeToCell(cell);
+                });
+
+                // Reposition si l'utilisateur fait défiler pendant le hover
+                cell.addEventListener('mousemove', () => {
+                    if (tooltip.style.display === 'block') {
+                        positionTooltipRelativeToCell(cell);
+                    }
+                });
+
+                cell.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                    tooltip.innerHTML = '';
+                });
+            }
+
+            document.querySelectorAll('.niveau-cell').forEach(attachTooltip);
+
+            // Re-clamp si resize
+            window.addEventListener('resize', () => {
+                if (tooltip.style.display === 'block') {
+                    const hovered = document.querySelector('.niveau-cell:hover');
+                    if (hovered) positionTooltipRelativeToCell(hovered);
+                }
+            });
         });
     </script>
 {% endblock %}
@@ -140,7 +224,7 @@
         <div class="row">
             <div class="col-md-12">
                 <h1 class="my-4">Visualisation des emplacements</h1>
-                
+
                 <div class="form-selection">
                     <form id="form-selection" method="get">
                         <div class="row">
@@ -160,13 +244,11 @@
                                 <div class="form-group">
                                     <label for="allee">Allée:</label>
 
-                                    {# --- AJOUT ICI : si cellule C4, on ajoute F, G, H aux allées proposées --- #}
+                                    {# Si besoin de compléter dynamiquement C4 avec F/G/H, on garde cette logique #}
                                     {% set alleesToShow = cellules[celluleSelectionnee].allees %}
                                     {% if celluleSelectionnee in ['C4','4'] %}
                                         {% set alleesToShow = alleesToShow|merge(['F','G','H']) %}
                                     {% endif %}
-
-                                    {# (optionnel) suppression des doublons #}
                                     {% set _dict = {} %}
                                     {% for a in alleesToShow %}
                                         {% set _dict = _dict|merge({ (a): true }) %}
@@ -185,12 +267,12 @@
                         </div>
                     </form>
                 </div>
-                
+
                 <div class="cellule-vue">
                     <div class="cellule-header">
                         Cellule: {{ celluleSelectionnee }} - Allée: {{ alleeSelectionnee }}
                     </div>
-                    
+
                     <div class="container-emplacements">
                         <div class="allee-content">
                             <!-- CÔTÉ PAIR (EN HAUT) -->
@@ -201,10 +283,10 @@
                                     {% for position, niveaux in emplacements.droite %}
                                         {% set positionsPair = positionsPair|merge([position]) %}
                                     {% endfor %}
-                                    
+
                                     {% if positionsPair|length > 0 %}
                                         {% set positionsPair = positionsPair|sort %}
-                                        
+
                                         {% for chunkStart in range(0, positionsPair|length, 4) %}
                                             <div class="position-group">
                                                 {% for i in range(chunkStart, chunkStart + 3) %}
@@ -212,7 +294,7 @@
                                                         {% set position = positionsPair[i] %}
                                                         <div class="position-column">
                                                             {% set paddedPosition = position < 10 ? '0' ~ position : position %}
-                                                            
+
                                                             {% for niveau in 4..0 %}
                                                                 {% if emplacements.droite[position] is defined and emplacements.droite[position][niveau] is defined %}
                                                                     {% set infos = emplacements.droite[position][niveau] %}
@@ -223,26 +305,29 @@
                                                                         {% endif %}
                                                                         {% if infos.plein %}
                                                                             <strong>{{ infos.uvtotal }}</strong>
-                                                                            <div class="niveau-info">{{ infos.designation[0]|length > 12 ? infos.designation[0]|slice(0, 12) ~ '...' : infos.designation[0] }}</div>
+                                                                            <div class="niveau-info">
+                                                                                {{ infos.designation[0]|length > 12 ? infos.designation[0]|slice(0, 12) ~ '...' : infos.designation[0] }}
+                                                                            </div>
                                                                             {% if infos.multiple %}
                                                                                 <div class="niveau-info">({{ infos.count }} pal.)</div>
                                                                             {% endif %}
                                                                         {% else %}
                                                                             <span class="niveau-adresse">{{ position }}-{{ niveau }}</span>
                                                                         {% endif %}
-                                                                        
+
+                                                                        {# Info HTML (cachée) copiée dans le tooltip global #}
                                                                         {% if infos.plein %}
                                                                             <div class="info-box">
                                                                                 <p><strong>Emplacement:</strong> {{ infos.code }}</p>
                                                                                 {% if infos.multiple %}
                                                                                     <p><strong>Nombre de palettes:</strong> {{ infos.count }}</p>
                                                                                     <p><strong>Palettes:</strong></p>
-                                                                                    {% for i in 0..infos.nopal|length - 1 %}
+                                                                                    {% for i2 in 0..infos.nopalinfo|length - 1 %}
                                                                                         <div style="margin-left: 10px; border-left: 2px solid #ffc107; padding-left: 10px; margin-bottom: 10px;">
-                                                                                            <p>Palette {{ i + 1 }}:</p>
-                                                                                            <p>- N° Palette: {{ infos.nopal[i] }}</p>
-                                                                                            <p>- Produit: {{ infos.codeprod[i] }}</p>
-                                                                                            <p>- Désignation: {{ infos.designation[i] }}</p>
+                                                                                            <p>Palette {{ i2 + 1 }}:</p>
+                                                                                            <p>- N° Palette: {{ infos.nopalinfo[i2] }}</p>
+                                                                                            <p>- Produit: {{ infos.codeprod[i2] }}</p>
+                                                                                            <p>- Désignation: {{ infos.designation[i2] }}</p>
                                                                                         </div>
                                                                                     {% endfor %}
                                                                                     <p><strong>UV total cumulé:</strong> {{ infos.uvtotal }}</p>
@@ -250,7 +335,7 @@
                                                                                     <p><strong>UR total cumulé:</strong> {{ infos.urdispo }}</p>
                                                                                     <p><strong>UV en sortie cumulé:</strong> {{ infos.uvensortie }}</p>
                                                                                 {% else %}
-                                                                                    <p><strong>Palette:</strong> {{ infos.nopal[0] }}</p>
+                                                                                    <p><strong>Palette:</strong> {{ infos.nopalinfo[0] }}</p>
                                                                                     <p><strong>Produit:</strong> {{ infos.codeprod[0] }}</p>
                                                                                     <p><strong>Désignation:</strong> {{ infos.designation[0] }}</p>
                                                                                     <p><strong>UV total:</strong> {{ infos.uvtotal }}</p>
@@ -291,7 +376,7 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            
+
                             <!-- CÔTÉ IMPAIR (EN BAS) -->
                             <div class="cote-container">
                                 <div class="cote-label">{{ celluleSelectionnee }} - Côté Impair</div>
@@ -300,10 +385,10 @@
                                     {% for position, niveaux in emplacements.gauche %}
                                         {% set positionsImpair = positionsImpair|merge([position]) %}
                                     {% endfor %}
-                                    
+
                                     {% if positionsImpair|length > 0 %}
                                         {% set positionsImpair = positionsImpair|sort %}
-                                        
+
                                         {% for chunkStart in range(0, positionsImpair|length, 4) %}
                                             <div class="position-group">
                                                 {% for i in range(chunkStart, chunkStart + 3) %}
@@ -311,7 +396,7 @@
                                                         {% set position = positionsImpair[i] %}
                                                         <div class="position-column">
                                                             {% set paddedPosition = position < 10 ? '0' ~ position : position %}
-                                                            
+
                                                             {% for niveau in 4..0 %}
                                                                 {% if emplacements.gauche[position] is defined and emplacements.gauche[position][niveau] is defined %}
                                                                     {% set infos = emplacements.gauche[position][niveau] %}
@@ -322,26 +407,28 @@
                                                                         {% endif %}
                                                                         {% if infos.plein %}
                                                                             <strong>{{ infos.uvtotal }}</strong>
-                                                                            <div class="niveau-info">{{ infos.designation[0]|length > 12 ? infos.designation[0]|slice(0, 12) ~ '...' : infos.designation[0] }}</div>
+                                                                            <div class="niveau-info">
+                                                                                {{ infos.designation[0]|length > 12 ? infos.designation[0]|slice(0, 12) ~ '...' : infos.designation[0] }}
+                                                                            </div>
                                                                             {% if infos.multiple %}
                                                                                 <div class="niveau-info">({{ infos.count }} pal.)</div>
                                                                             {% endif %}
                                                                         {% else %}
                                                                             <span class="niveau-adresse">{{ position }}-{{ niveau }}</span>
                                                                         {% endif %}
-                                                                        
-                                                                        {% if infos.plein %}
-                                                                            <div class="info-box">
+
+                                                                        <div class="info-box">
+                                                                            {% if infos.plein %}
                                                                                 <p><strong>Emplacement:</strong> {{ infos.code }}</p>
                                                                                 {% if infos.multiple %}
                                                                                     <p><strong>Nombre de palettes:</strong> {{ infos.count }}</p>
                                                                                     <p><strong>Palettes:</strong></p>
-                                                                                    {% for i in 0..infos.nopal|length - 1 %}
+                                                                                    {% for i2 in 0..infos.nopalinfo|length - 1 %}
                                                                                         <div style="margin-left: 10px; border-left: 2px solid #ffc107; padding-left: 10px; margin-bottom: 10px;">
-                                                                                            <p>Palette {{ i + 1 }}:</p>
-                                                                                            <p>- N° Palette: {{ infos.nopal[i] }}</p>
-                                                                                            <p>- Produit: {{ infos.codeprod[i] }}</p>
-                                                                                            <p>- Désignation: {{ infos.designation[i] }}</p>
+                                                                                            <p>Palette {{ i2 + 1 }}:</p>
+                                                                                            <p>- N° Palette: {{ infos.nopalinfo[i2] }}</p>
+                                                                                            <p>- Produit: {{ infos.codeprod[i2] }}</p>
+                                                                                            <p>- Désignation: {{ infos.designation[i2] }}</p>
                                                                                         </div>
                                                                                     {% endfor %}
                                                                                     <p><strong>UV total cumulé:</strong> {{ infos.uvtotal }}</p>
@@ -349,7 +436,7 @@
                                                                                     <p><strong>UR total cumulé:</strong> {{ infos.urdispo }}</p>
                                                                                     <p><strong>UV en sortie cumulé:</strong> {{ infos.uvensortie }}</p>
                                                                                 {% else %}
-                                                                                    <p><strong>Palette:</strong> {{ infos.nopal[0] }}</p>
+                                                                                    <p><strong>Palette:</strong> {{ infos.nopalinfo[0] }}</p>
                                                                                     <p><strong>Produit:</strong> {{ infos.codeprod[0] }}</p>
                                                                                     <p><strong>Désignation:</strong> {{ infos.designation[0] }}</p>
                                                                                     <p><strong>UV total:</strong> {{ infos.uvtotal }}</p>
@@ -360,8 +447,11 @@
                                                                                 {% if infos.probleme %}
                                                                                     <p><strong class="text-danger">⚠️ Problème signalé</strong></p>
                                                                                 {% endif %}
-                                                                            </div>
-                                                                        {% endif %}
+                                                                            {% else %}
+                                                                                <p><strong>Emplacement:</strong> {{ celluleSelectionnee }}:{{ alleeSelectionnee }}-{{ paddedPosition }}-{{ niveau }}</p>
+                                                                                <p>Statut : vide</p>
+                                                                            {% endif %}
+                                                                        </div>
                                                                     </div>
                                                                 {% else %}
                                                                     <div class="niveau-cell vide" data-emplacement="{{ celluleSelectionnee }}:{{ alleeSelectionnee }}-{{ paddedPosition }}-{{ niveau }}">
@@ -393,7 +483,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="legende">
                     <h5>Légende</h5>
                     <div class="legende-item"><div class="legende-couleur vide"></div><span>Emplacement vide</span></div>
@@ -409,7 +499,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Modal pour signaler un problème -->
     <div id="problemModal" class="modal">
         <div class="modal-content">
@@ -428,7 +518,10 @@
             </form>
         </div>
     </div>
-    
+
+    <!-- Tooltip global (hors overflow) -->
+    <div id="hoverTooltip" aria-hidden="true"></div>
+
     <!-- Bouton vers l'historique des problèmes -->
     <a href="{{ path('app_problemes_liste') }}" class="historique-btn">
         <i class="fas fa-history"></i> Historique des problèmes

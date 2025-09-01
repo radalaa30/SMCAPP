@@ -17,8 +17,12 @@ class Probleme
     #[ORM\Column(length: 255)]
     private ?string $emplacement = null;
 
-    #[ORM\Column(length: 255)]
-    private ?string $nopal = null;
+    /**
+     * Numéro de palette : on utilise désormais nopalinfo.
+     * Mappé sur la colonne existante "nopal" pour éviter une migration immédiate.
+     */
+    #[ORM\Column(name: 'nopal', length: 255)]
+    private ?string $nopalinfo = null;
 
     #[ORM\Column(length: 255)]
     private ?string $codeprod = null;
@@ -84,15 +88,32 @@ class Probleme
         return $this;
     }
 
+    /**
+     * Nouveau nom d’accès : nopalinfo
+     */
+    public function getNopalinfo(): ?string
+    {
+        return $this->nopalinfo;
+    }
+
+    public function setNopalinfo(string $nopalinfo): static
+    {
+        $this->nopalinfo = $nopalinfo;
+        return $this;
+    }
+
+    /**
+     * Compatibilité rétro : getNopal()/setNopal() délèguent vers nopalinfo.
+     * (Optionnel, utile si d’autres endroits du code utilisent encore "nopal")
+     */
     public function getNopal(): ?string
     {
-        return $this->nopal;
+        return $this->getNopalinfo();
     }
 
     public function setNopal(string $nopal): static
     {
-        $this->nopal = $nopal;
-        return $this;
+        return $this->setNopalinfo($nopal);
     }
 
     public function getCodeprod(): ?string
