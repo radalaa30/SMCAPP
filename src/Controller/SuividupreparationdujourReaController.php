@@ -2,12 +2,11 @@
 
 namespace App\Controller;
 
-use App\Entity\SuividupreparationdujourRea;
 use App\Repository\SuividupreparationdujourReaRepository;
-use Doctrine\ORM\Query\ResultSetMapping;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Annotation\Route;
+use Doctrine\ORM\Query\ResultSetMapping;
 
 #[Route('/admin')]
 class SuividupreparationdujourReaController extends AbstractController
@@ -20,27 +19,22 @@ class SuividupreparationdujourReaController extends AbstractController
     private const STATUS_KO = 'KO';
     private const STATUS_NON_FLASHE = 'NON FLASHE';
 
-    /**
-     * On garde exactement ta route :
-     * /suividupreparationdujour/rea  name: app_suividupreparationdujour_rea
-     */
     #[Route('/suividupreparationdujour/rea', name: 'app_suividupreparationdujour_rea')]
-    public function index(SuividupreparationdujourReaRepository $repository): Response
+    public function stats(SuividupreparationdujourReaRepository $repository): Response
     {
-        $startOfDay = new \DateTimeImmutable('today 00:00:00');
-        $endOfDay   = new \DateTimeImmutable('tomorrow 00:00:00');
+        $tz = new \DateTimeZone('Europe/Paris');
+        $startOfDay = (new \DateTimeImmutable('today', $tz))->setTime(0, 0, 0);
+        $endOfDay   = $startOfDay->modify('+1 day'); // fenêtre demi-ouverte [start, end)
 
-        // lastUpdatedAt via DQL (simple et portable)
+        // DQL côté "last updated" (champ mapped : updatedAt => col DB updated_at)
         $lastUpdatedAt = $repository->createQueryBuilder('s')
             ->select('MAX(s.updatedAt) AS lastUpdatedAt')
-            ->andWhere('s.updatedAt >= :start')
-            ->andWhere('s.updatedAt < :end')
-            ->setParameter('start', $startOfDay)
-            ->setParameter('end', $endOfDay)
+            ->where('s.updatedAt >= :startOfDay AND s.updatedAt < :endOfDay')
+            ->setParameter('startOfDay', $startOfDay)
+            ->setParameter('endOfDay', $endOfDay)
             ->getQuery()
             ->getSingleScalarResult();
 
-        // Stats (requêtes SQL natives avec alias explicites côté SELECT)
         $statsGlobales         = $this->getStatsGlobales($repository, $startOfDay, $endOfDay);
         $statsAgence           = $this->getStatsParAgence($repository, $startOfDay, $endOfDay);
         $statsPreparateur      = $this->getStatsParPreparateur($repository, $startOfDay, $endOfDay);
@@ -48,6 +42,7 @@ class SuividupreparationdujourReaController extends AbstractController
         $statsClientGSB        = $this->getStatsParClientGSB($repository, $startOfDay, $endOfDay);
         $statsClientGSBLM      = $this->getStatsParClientGSBLM($repository, $startOfDay, $endOfDay);
         $statsClientGSBAutres  = $this->getStatsParClientGSBAutres($repository, $startOfDay, $endOfDay);
+        $statsTransporteur     = $this->getStatsParTransporteur($repository, $startOfDay, $endOfDay);
 
         return $this->render('suividupreparationdujour_rea/stats.html.twig', [
             'statsStatut'                        => $this->getStatsParEtat($repository, $startOfDay, $endOfDay),
@@ -58,10 +53,15 @@ class SuividupreparationdujourReaController extends AbstractController
             'statsClientGSB'                     => $statsClientGSB,
             'statsClientGSBLM'                   => $statsClientGSBLM,
             'statsClientGSBAutres'               => $statsClientGSBAutres,
+            'statsTransporteur'                  => $statsTransporteur,
             'dataPreparateurs'                   => $this->prepareDataPreparateurs($statsPreparateur),
             'dataAgences'                        => $this->prepareDataAgences($statsAgence),
+            'dataTransporteurs'                  => $this->prepareDataTransporteurs($statsTransporteur),
             'lastUpdatedAt'                      => $lastUpdatedAt,
-            // exposés individuellement pour le header (comme dans ton ancien contrôleur)
+            'totalPreparationsClient'            => $statsGlobales['total_preparations_client'] ?? 0,
+            'preparationsClientEnCours'          => $statsGlobales['preparations_client_en_cours'] ?? 0,
+            'totalPreparationsAgence'            => $statsGlobales['total_preparations_agence'] ?? 0,
+            'preparationsAgenceEnCours'          => $statsGlobales['preparations_agence_en_cours'] ?? 0,
             'totalPreparationsClientGSB'         => $statsGlobales['total_preparations_client_gsb'] ?? 0,
             'preparationsClientGSBEnCours'       => $statsGlobales['preparations_client_gsb_en_cours'] ?? 0,
             'preparationsTermineesClientGSB'     => $statsGlobales['preparations_terminees_client_gsb'] ?? 0,
@@ -70,154 +70,194 @@ class SuividupreparationdujourReaController extends AbstractController
             'preparationsTermineesClientGSBLM'   => $statsGlobales['preparations_terminees_client_gsb_lm'] ?? 0,
             'totalPreparationsClientGSBAutres'   => $statsGlobales['total_preparations_client_gsb_autres'] ?? 0,
             'preparationsClientGSBAutresEnCours' => $statsGlobales['preparations_client_gsb_autres_en_cours'] ?? 0,
-            'preparationsTermineesClientGSBAutres' => $statsGlobales['preparations_terminees_client_gsb_autres'] ?? 0,
+            'preparationsTermineesClientGSBAutres'=> $statsGlobales['preparations_terminees_client_gsb_autres'] ?? 0,
             'preparationsAgenceStatusKO'         => $statsGlobales['preparations_agence_status_ko'] ?? 0,
             'preparationsNonFlasheAvecDate'      => $statsGlobales['preparations_non_flashe_avec_date'] ?? 0,
         ]);
     }
 
-    /** ========================== Helpers SQL natifs (avec alias explicites) ========================== */
-
-    private function executeStatsQueryRea(
+    /**
+     * IMPORTANT : on utilise les colonnes de l'entity (snake_case) et le nom de table réel via la métadata.
+     */
+    private function executeStatsQuery(
         SuividupreparationdujourReaRepository $repository,
         array $groupBy = [],
         ?string $whereClause = null,
         string|array|null $parameters = null,
-        \DateTimeImmutable $startOfDay = null,
-        \DateTimeImmutable $endOfDay = null
+        ?\DateTimeInterface $startOfDay = null,
+        ?\DateTimeInterface $endOfDay = null
     ): array {
-        $em    = $repository->getEntityManager();
-        $conn  = $em->getConnection();
-        $table = $em->getClassMetadata(SuividupreparationdujourRea::class)->getTableName();
+        $tz = new \DateTimeZone('Europe/Paris');
+        $start = ($startOfDay ?? new \DateTimeImmutable('today', $tz))->setTime(0, 0, 0);
+        $end   = ($endOfDay   ?? $start)->setTime(0, 0, 0)->modify('+1 day'); // [start, end)
 
-        // Construction du SELECT
+        // Nom de table issu de la métadata Doctrine (évite les divergences)
+        $table = $repository->getClassMetadata()->getTableName();
+
+        // Map simple "alias affiché" -> "colonne DB"
+        $toDb = static function (string $fieldName): string {
+            return match ($fieldName) {
+                'Client'        => 'client',
+                'Code_Client'   => 'code_client',
+                'No_Cmd'        => 'no_cmd',
+                'Preparateur'   => 'preparateur',
+                'Transporteur'  => 'transporteur',
+                default         => strtolower($fieldName),
+            };
+        };
+
         $selectFields = [];
-        foreach ($groupBy as $field) {
-            $name = substr($field, strpos($field, '.') + 1);
 
-            if ($name === 'Preparateur') {
+        // Champs groupés avec alias explicites (alias = même casse que le code consomme)
+        foreach ($groupBy as $field) {
+            $fieldName = substr($field, (int)strpos($field, '.') + 1); // ex: "Client"
+            if ($fieldName === 'Preparateur') {
                 $selectFields[] = "CASE 
-                    WHEN s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}'
-                    THEN 'Ligne suspendus'
-                    ELSE s.preparateur
+                    WHEN s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
+                    THEN 'Lignes suspendues' 
+                    ELSE s.preparateur 
                 END AS Preparateur";
             } else {
-                // map vers colonnes réelles (snake_case) puis alias EXACT attendu par Twig
-                $column = match ($name) {
-                    'Client'      => 's.client',
-                    'Code_Client' => 's.code_client',
-                    'No_Cmd'      => 's.no_cmd',
-                    default       => 's.' . strtolower($name),
-                };
-                $selectFields[] = $column . ' AS ' . $name; // alias explicite !
+                $dbCol = $toDb($fieldName);
+                $selectFields[] = "s.$dbCol AS $fieldName";
             }
         }
 
-        // Agrégats communs
+        // Agrégats (COALESCE pour éviter NULL)
         $selectFields = array_merge($selectFields, [
             'COUNT(s.id) AS total_preparations',
-            "SUM(CASE WHEN s.flasher = :status_ok THEN 1 ELSE 0 END) AS preparations_terminees",
-            "SUM(CASE WHEN s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko THEN 1 ELSE 0 END) AS preparations_en_cours",
+            "COALESCE(SUM(CASE WHEN s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees",
+            "COALESCE(SUM(CASE WHEN (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_en_cours",
 
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.flasher = :status_ok THEN 1 ELSE 0 END) AS preparations_terminees_client",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_en_cours_client",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees_client",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_en_cours_client",
 
-            "SUM(CASE WHEN s.code_client LIKE :agency_prefix AND s.flasher = :status_ok THEN 1 ELSE 0 END) AS preparations_terminees_agence",
-            "SUM(CASE WHEN s.code_client LIKE :agency_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_en_cours_agence",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :agency_prefix AND s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees_agence",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :agency_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_en_cours_agence",
 
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix THEN 1 ELSE 0 END) AS total_preparations_client",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_client_en_cours",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix THEN 1 ELSE 0 END),0) AS total_preparations_client",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_client_en_cours",
 
-            "SUM(CASE WHEN s.code_client LIKE :agency_prefix THEN 1 ELSE 0 END) AS total_preparations_agence",
-            "SUM(CASE WHEN s.code_client LIKE :agency_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_agence_en_cours",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :agency_prefix THEN 1 ELSE 0 END),0) AS total_preparations_agence",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :agency_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_agence_en_cours",
 
-            // GSB / TH
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix THEN 1 ELSE 0 END) AS total_preparations_client_gsb",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.flasher = :status_ok THEN 1 ELSE 0 END) AS preparations_terminees_client_gsb",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_client_gsb_en_cours",
+            // GSB global
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix THEN 1 ELSE 0 END),0) AS total_preparations_client_gsb",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees_client_gsb",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_client_gsb_en_cours",
 
-            // GSB Leroy Merlin
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client LIKE :client_gsb_leroy_merlin THEN 1 ELSE 0 END) AS total_preparations_client_gsb_lm",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client LIKE :client_gsb_leroy_merlin AND s.flasher = :status_ok THEN 1 ELSE 0 END) AS preparations_terminees_client_gsb_lm",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client LIKE :client_gsb_leroy_merlin AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_client_gsb_lm_en_cours",
+            // GSB LM
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client LIKE :client_gsb_leroy_merlin THEN 1 ELSE 0 END),0) AS total_preparations_client_gsb_lm",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client LIKE :client_gsb_leroy_merlin AND s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees_client_gsb_lm",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client LIKE :client_gsb_leroy_merlin AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_client_gsb_lm_en_cours",
 
             // GSB autres
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client NOT LIKE :client_gsb_leroy_merlin THEN 1 ELSE 0 END) AS total_preparations_client_gsb_autres",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client NOT LIKE :client_gsb_leroy_merlin AND s.flasher = :status_ok THEN 1 ELSE 0 END) AS preparations_terminees_client_gsb_autres",
-            "SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client NOT LIKE :client_gsb_leroy_merlin AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END) AS preparations_client_gsb_autres_en_cours",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client NOT LIKE :client_gsb_leroy_merlin THEN 1 ELSE 0 END),0) AS total_preparations_client_gsb_autres",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client NOT LIKE :client_gsb_leroy_merlin AND s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees_client_gsb_autres",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :client_prefix AND s.no_cmd LIKE :client_gsb_prefix AND s.client NOT LIKE :client_gsb_leroy_merlin AND (s.flasher IS NULL OR s.flasher = '' OR s.flasher = :status_ko) THEN 1 ELSE 0 END),0) AS preparations_client_gsb_autres_en_cours",
 
-            // KO & suspendues
-            "SUM(CASE WHEN s.flasher = :status_ko THEN 1 ELSE 0 END) AS preparations_status_ko",
-            "SUM(CASE WHEN s.code_client LIKE :agency_prefix AND s.flasher = :status_ko THEN 1 ELSE 0 END) AS preparations_agence_status_ko",
-            "SUM(CASE WHEN s.flasher = :status_non_flashe AND s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' THEN 1 ELSE 0 END) AS preparations_non_flashe_avec_date",
+            // KO
+            "COALESCE(SUM(CASE WHEN s.flasher = :status_ko THEN 1 ELSE 0 END),0) AS preparations_status_ko",
+            "COALESCE(SUM(CASE WHEN s.code_client LIKE :agency_prefix AND s.flasher = :status_ko THEN 1 ELSE 0 END),0) AS preparations_agence_status_ko",
 
-            // Volumes + %
-            "SUM(s.nb_pal) AS total_palettes",
-            "SUM(s.nb_col) AS total_colis",
-            "CAST(CASE WHEN COUNT(s.id) > 0 THEN (SUM(CASE WHEN s.flasher = :status_ok THEN 1 ELSE 0 END) * 100.0) / COUNT(s.id) ELSE 0 END AS DECIMAL(10,2)) AS pourcentage_avancement",
+            // NON FLASHE + date (sur champ preparateur "daté")
+            "COALESCE(SUM(CASE 
+                WHEN s.flasher = :status_non_flashe 
+                 AND s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
+                THEN 1 ELSE 0 END),0) AS preparations_non_flashe_avec_date",
 
-            // Liste préparateurs (hors dates) pour affichage
-            "GROUP_CONCAT(DISTINCT CASE WHEN (s.flasher IS NULL OR s.flasher = '') AND s.preparateur NOT REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' THEN s.preparateur END SEPARATOR ', ') AS preparateurs",
+            // totaux logistiques
+            "COALESCE(SUM(s.nb_pal),0) AS total_palettes",
+            "COALESCE(SUM(s.nb_col),0) AS total_colis",
+
+            // % d'avancement
+            "CAST(
+                CASE 
+                    WHEN COUNT(s.id) > 0 THEN 
+                        (SUM(CASE WHEN s.flasher = :status_ok THEN 1 ELSE 0 END) * 100.0) / COUNT(s.id)
+                    ELSE 0 
+                END 
+            AS DECIMAL(5,2)) AS pourcentage_avancement",
+
+            // liste préparateurs non flashés (lisible)
+            "GROUP_CONCAT(DISTINCT CASE 
+                WHEN (s.flasher IS NULL OR s.flasher = '') 
+                 AND s.preparateur NOT REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
+                THEN s.preparateur 
+            END SEPARATOR ', ') AS preparateurs",
         ]);
 
-        $sql = 'SELECT ' . implode(', ', $selectFields) . " FROM {$table} s";
+        $sql = 'SELECT ' . implode(', ', $selectFields) . " FROM $table s";
 
+        // Filtre date : colonne DB = updated_at
         $dateCondition = ' s.updated_at >= :startOfDay AND s.updated_at < :endOfDay';
-        if (!empty($whereClause)) {
-            $sql .= ' WHERE ' . $whereClause . ' AND ' . $dateCondition;
-        } else {
-            $sql .= ' WHERE ' . $dateCondition;
+        $whereClause = $whereClause ? $whereClause . ' AND ' . $dateCondition : $dateCondition;
+
+        if ($whereClause) {
+            $sql .= ' WHERE ' . $whereClause;
         }
 
         if (!empty($groupBy)) {
             $groupByFields = [];
             foreach ($groupBy as $field) {
-                $name = substr($field, strpos($field, '.') + 1);
-                if ($name === 'Preparateur') {
+                $fieldName = substr($field, (int)strpos($field, '.') + 1);
+                if ($fieldName === 'Preparateur') {
                     $groupByFields[] = "CASE 
-                        WHEN s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}'
-                        THEN 'Ligne suspendus'
-                        ELSE s.preparateur
+                        WHEN s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
+                        THEN 'Lignes suspendues' 
+                        ELSE s.preparateur 
                     END";
                 } else {
-                    $groupByFields[] = match ($name) {
-                        'Client'      => 's.client',
-                        'Code_Client' => 's.code_client',
-                        'No_Cmd'      => 's.no_cmd',
-                        default       => 's.' . strtolower($name),
-                    };
+                    $groupByFields[] = 's.' . $toDb($fieldName);
                 }
             }
-            $sql .= ' GROUP BY ' . implode(',', $groupByFields);
+            $sql .= ' GROUP BY ' . implode(', ', $groupByFields);
         }
 
         $sql .= ' ORDER BY total_preparations DESC';
 
         $rsm = new ResultSetMapping();
         foreach ($groupBy as $field) {
-            $name = substr($field, strpos($field, '.') + 1);
-            $rsm->addScalarResult($name, $name, 'string'); // doit matcher l'alias du SELECT
+            $fieldName = substr($field, (int)strpos($field, '.') + 1);
+            $rsm->addScalarResult($fieldName, $fieldName, 'string');
         }
-        // mapping des agrégats
-        foreach ([
-            'total_preparations','preparations_terminees','preparations_en_cours',
-            'preparations_terminees_client','preparations_en_cours_client',
-            'preparations_terminees_agence','preparations_en_cours_agence',
-            'total_preparations_client','preparations_client_en_cours',
-            'total_preparations_agence','preparations_agence_en_cours',
-            'total_preparations_client_gsb','preparations_terminees_client_gsb','preparations_client_gsb_en_cours',
-            'total_preparations_client_gsb_lm','preparations_terminees_client_gsb_lm','preparations_client_gsb_lm_en_cours',
-            'total_preparations_client_gsb_autres','preparations_terminees_client_gsb_autres','preparations_client_gsb_autres_en_cours',
-            'total_palettes','total_colis','preparations_status_ko','preparations_agence_status_ko','preparations_non_flashe_avec_date'
-        ] as $intCol) {
-            $rsm->addScalarResult($intCol, $intCol, 'integer');
-        }
+
+        $rsm->addScalarResult('total_preparations', 'total_preparations', 'integer');
+        $rsm->addScalarResult('preparations_terminees', 'preparations_terminees', 'integer');
+        $rsm->addScalarResult('preparations_en_cours', 'preparations_en_cours', 'integer');
+        $rsm->addScalarResult('preparations_terminees_client', 'preparations_terminees_client', 'integer');
+        $rsm->addScalarResult('preparations_en_cours_client', 'preparations_en_cours_client', 'integer');
+        $rsm->addScalarResult('preparations_terminees_agence', 'preparations_terminees_agence', 'integer');
+        $rsm->addScalarResult('preparations_en_cours_agence', 'preparations_en_cours_agence', 'integer');
+        $rsm->addScalarResult('total_preparations_client', 'total_preparations_client', 'integer');
+        $rsm->addScalarResult('preparations_client_en_cours', 'preparations_client_en_cours', 'integer');
+        $rsm->addScalarResult('total_preparations_agence', 'total_preparations_agence', 'integer');
+        $rsm->addScalarResult('preparations_agence_en_cours', 'preparations_agence_en_cours', 'integer');
+
+        $rsm->addScalarResult('total_preparations_client_gsb', 'total_preparations_client_gsb', 'integer');
+        $rsm->addScalarResult('preparations_terminees_client_gsb', 'preparations_terminees_client_gsb', 'integer');
+        $rsm->addScalarResult('preparations_client_gsb_en_cours', 'preparations_client_gsb_en_cours', 'integer');
+
+        $rsm->addScalarResult('total_preparations_client_gsb_lm', 'total_preparations_client_gsb_lm', 'integer');
+        $rsm->addScalarResult('preparations_terminees_client_gsb_lm', 'preparations_terminees_client_gsb_lm', 'integer');
+        $rsm->addScalarResult('preparations_client_gsb_lm_en_cours', 'preparations_client_gsb_lm_en_cours', 'integer');
+
+        $rsm->addScalarResult('total_preparations_client_gsb_autres', 'total_preparations_client_gsb_autres', 'integer');
+        $rsm->addScalarResult('preparations_terminees_client_gsb_autres', 'preparations_terminees_client_gsb_autres', 'integer');
+        $rsm->addScalarResult('preparations_client_gsb_autres_en_cours', 'preparations_client_gsb_autres_en_cours', 'integer');
+
+        $rsm->addScalarResult('total_palettes', 'total_palettes', 'integer');
+        $rsm->addScalarResult('total_colis', 'total_colis', 'integer');
         $rsm->addScalarResult('pourcentage_avancement', 'pourcentage_avancement', 'float');
         $rsm->addScalarResult('preparateurs', 'preparateurs', 'string');
+        $rsm->addScalarResult('preparations_status_ko', 'preparations_status_ko', 'integer');
+        $rsm->addScalarResult('preparations_agence_status_ko', 'preparations_agence_status_ko', 'integer');
+        $rsm->addScalarResult('preparations_non_flashe_avec_date', 'preparations_non_flashe_avec_date', 'integer');
 
-        $query = $em->createNativeQuery($sql, $rsm)
-            ->setParameter('startOfDay', $startOfDay ?? new \DateTimeImmutable('today 00:00:00'))
-            ->setParameter('endOfDay', $endOfDay ?? new \DateTimeImmutable('tomorrow 00:00:00'))
+        $query = $repository->getEntityManager()
+            ->createNativeQuery($sql, $rsm)
+            ->setParameter('startOfDay', $start)
+            ->setParameter('endOfDay', $end)
             ->setParameter('status_ok', self::STATUS_OK)
             ->setParameter('status_ko', self::STATUS_KO)
             ->setParameter('status_non_flashe', self::STATUS_NON_FLASHE)
@@ -227,23 +267,17 @@ class SuividupreparationdujourReaController extends AbstractController
             ->setParameter('client_gsb_leroy_merlin', self::CLIENT_GSB_LEROY_MERLIN . '%');
 
         if ($parameters) {
-            if (is_array($parameters)) {
-                foreach ($parameters as $i => $value) {
-                    $query->setParameter('param_' . $i, $value);
-                }
-            } else {
-                $query->setParameter('param_0', $parameters);
+            foreach ((array)$parameters as $i => $value) {
+                $query->setParameter('param_' . $i, $value);
             }
         }
 
         $result = empty($groupBy) ? $query->getSingleResult() : $query->getResult();
 
-        // transformer la liste de préparateurs string -> array (lisible en Twig)
         if (is_array($result) && !empty($groupBy)) {
             foreach ($result as &$row) {
                 if (isset($row['preparateurs'])) {
-                    $preps = explode(', ', (string)$row['preparateurs']);
-                    $row['preparateurs'] = array_values(array_filter($preps, fn($p) => !empty($p)));
+                    $row['preparateurs'] = array_values(array_filter(explode(', ', $row['preparateurs'])));
                 }
             }
         }
@@ -251,89 +285,102 @@ class SuividupreparationdujourReaController extends AbstractController
         return $result;
     }
 
-    private function getStatsParEtat(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParEtat(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea($repository, [], null, null, $start, $end);
+        return $this->executeStatsQuery($repository, [], null, null, $startOfDay, $endOfDay);
     }
 
-    private function getStatsParPreparateur(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParPreparateur(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea(
+        return $this->executeStatsQuery(
             $repository,
-            ['s.Preparateur'],
+            ['s.Preparateur'], // alias attendu côté RSM/affichage
             "s.preparateur IS NOT NULL AND s.preparateur != ''",
             null,
-            $start,
-            $end
+            $startOfDay,
+            $endOfDay
         );
     }
 
-    private function getStatsGlobales(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsGlobales(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea($repository, [], null, null, $start, $end);
+        return $this->executeStatsQuery($repository, [], null, null, $startOfDay, $endOfDay);
     }
 
-    private function getStatsParAgence(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParAgence(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea(
+        return $this->executeStatsQuery(
             $repository,
             ['s.Client', 's.Code_Client'],
             's.code_client LIKE :param_0',
             [self::AGENCY_PREFIX],
-            $start,
-            $end
+            $startOfDay,
+            $endOfDay
         );
     }
 
-    private function getStatsParClient(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParClient(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea(
+        return $this->executeStatsQuery(
             $repository,
             ['s.Client', 's.Code_Client'],
             's.code_client LIKE :param_0',
             [self::CLIENT_PREFIX],
-            $start,
-            $end
+            $startOfDay,
+            $endOfDay
         );
     }
 
-    private function getStatsParClientGSB(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParClientGSB(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea(
+        return $this->executeStatsQuery(
             $repository,
             ['s.Client', 's.Code_Client', 's.No_Cmd'],
             's.code_client LIKE :param_0 AND s.no_cmd LIKE :param_1',
             [self::CLIENT_PREFIX, '%' . self::CLIENT_GSB_PREFIX . '%'],
-            $start,
-            $end
+            $startOfDay,
+            $endOfDay
         );
     }
 
-    private function getStatsParClientGSBLM(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParClientGSBLM(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea(
+        return $this->executeStatsQuery(
             $repository,
             ['s.Client', 's.Code_Client', 's.No_Cmd'],
             's.code_client LIKE :param_0 AND s.no_cmd LIKE :param_1 AND s.client LIKE :param_2',
             [self::CLIENT_PREFIX, '%' . self::CLIENT_GSB_PREFIX . '%', self::CLIENT_GSB_LEROY_MERLIN . '%'],
-            $start,
-            $end
+            $startOfDay,
+            $endOfDay
         );
     }
 
-    private function getStatsParClientGSBAutres(SuividupreparationdujourReaRepository $repository, \DateTimeImmutable $start, \DateTimeImmutable $end): array
+    private function getStatsParClientGSBAutres(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
     {
-        return $this->executeStatsQueryRea(
+        return $this->executeStatsQuery(
             $repository,
             ['s.Client', 's.Code_Client', 's.No_Cmd'],
             's.code_client LIKE :param_0 AND s.no_cmd LIKE :param_1 AND s.client NOT LIKE :param_2',
             [self::CLIENT_PREFIX, '%' . self::CLIENT_GSB_PREFIX . '%', self::CLIENT_GSB_LEROY_MERLIN . '%'],
-            $start,
-            $end
+            $startOfDay,
+            $endOfDay
         );
     }
 
-    /** ============================== Préparation des datasets pour Chart.js ============================== */
+    /** Transporteurs SANS LIV */
+    private function getStatsParTransporteur(SuividupreparationdujourReaRepository $repository, \DateTimeInterface $startOfDay, \DateTimeInterface $endOfDay): array
+    {
+        return $this->executeStatsQuery(
+            $repository,
+            ['s.Transporteur'],
+            "s.transporteur IS NOT NULL 
+             AND s.transporteur != '' 
+             AND s.transporteur != 'LIV'",
+            null,
+            $startOfDay,
+            $endOfDay
+        );
+    }
 
     private function prepareDataPreparateurs(array $statsPreparateur): array
     {
@@ -352,22 +399,21 @@ class SuividupreparationdujourReaController extends AbstractController
 
         foreach ($statsPreparateur as $stat) {
             $data['labels'][] = $stat['Preparateur'];
-
             $clientGSBTerminees = $stat['preparations_terminees_client_gsb'] ?? 0;
             $clientGSBEnCours   = $stat['preparations_client_gsb_en_cours'] ?? 0;
 
-            $data['termineesClient'][]         = ($stat['preparations_terminees_client'] ?? 0) - $clientGSBTerminees;
-            $data['enCoursClient'][]           = ($stat['preparations_en_cours_client'] ?? 0) - $clientGSBEnCours;
+            $data['termineesClient'][]          = ($stat['preparations_terminees_client'] ?? 0) - $clientGSBTerminees;
+            $data['enCoursClient'][]            = ($stat['preparations_en_cours_client'] ?? 0) - $clientGSBEnCours;
 
-            $data['termineesClientGSBLM'][]    = $stat['preparations_terminees_client_gsb_lm'] ?? 0;
-            $data['enCoursClientGSBLM'][]      = $stat['preparations_client_gsb_lm_en_cours'] ?? 0;
+            $data['termineesClientGSBLM'][]     = $stat['preparations_terminees_client_gsb_lm'] ?? 0;
+            $data['enCoursClientGSBLM'][]       = $stat['preparations_client_gsb_lm_en_cours'] ?? 0;
 
             $data['termineesClientGSBAutres'][] = $stat['preparations_terminees_client_gsb_autres'] ?? 0;
             $data['enCoursClientGSBAutres'][]   = $stat['preparations_client_gsb_autres_en_cours'] ?? 0;
 
-            $data['termineesAgence'][]         = $stat['preparations_terminees_agence'] ?? 0;
-            $data['enCoursAgence'][]           = $stat['preparations_en_cours_agence'] ?? 0;
-            $data['pourcentages'][]            = (float)($stat['pourcentage_avancement'] ?? 0.0);
+            $data['termineesAgence'][]          = $stat['preparations_terminees_agence'] ?? 0;
+            $data['enCoursAgence'][]            = $stat['preparations_en_cours_agence'] ?? 0;
+            $data['pourcentages'][]             = (float)($stat['pourcentage_avancement'] ?? 0);
         }
 
         return $data;
@@ -383,10 +429,29 @@ class SuividupreparationdujourReaController extends AbstractController
         ];
 
         foreach ($statsAgence as $stat) {
-            $data['labels'][]      = $stat['Client']; // grâce aux alias SQL
-            $data['terminees'][]   = (int)($stat['preparations_terminees'] ?? 0);
-            $data['enCours'][]     = (int)($stat['preparations_en_cours'] ?? 0);
-            $data['pourcentages'][] = (float)($stat['pourcentage_avancement'] ?? 0.0);
+            $data['labels'][]       = $stat['Client'];
+            $data['terminees'][]    = (int)($stat['preparations_terminees'] ?? 0);
+            $data['enCours'][]      = (int)($stat['preparations_en_cours'] ?? 0);
+            $data['pourcentages'][] = (float)($stat['pourcentage_avancement'] ?? 0);
+        }
+
+        return $data;
+    }
+
+    private function prepareDataTransporteurs(array $stats): array
+    {
+        $data = [
+            'labels' => [],
+            'terminees' => [],
+            'enCours' => [],
+            'pourcentages' => [],
+        ];
+
+        foreach ($stats as $stat) {
+            $data['labels'][]       = $stat['Transporteur'] ?? 'Inconnu';
+            $data['terminees'][]    = (int)($stat['preparations_terminees'] ?? 0);
+            $data['enCours'][]      = (int)($stat['preparations_en_cours'] ?? 0);
+            $data['pourcentages'][] = (float)($stat['pourcentage_avancement'] ?? 0);
         }
 
         return $data;
