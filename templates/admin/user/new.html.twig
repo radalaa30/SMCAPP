@@ -1,0 +1,30 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Nouvel utilisateur{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="mb-0"><i class="fas fa-user-plus me-2"></i>Créer un utilisateur</h2>
+    <a href="{{ path('admin_users_index') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-arrow-left"></i> Retour à la liste
+    </a>
+  </div>
+
+  {# Flash messages #}
+  {% for label, messages in app.flashes %}
+    {% for message in messages %}
+      <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+      </div>
+    {% endfor %}
+  {% endfor %}
+
+  {% include 'admin/user/_form.html.twig' with {
+    form: form,
+    submit_label: 'Créer l’utilisateur',
+    back_path: path('admin_users_index')
+  } %}
+</div>
+{% endblock %}

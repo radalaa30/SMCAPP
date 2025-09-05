@@ -20,6 +20,30 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     }
 
     /**
+     * Persiste/flush un utilisateur.
+     */
+    public function save(User $user, bool $flush = true): void
+    {
+        $em = $this->getEntityManager();
+        $em->persist($user);
+        if ($flush) {
+            $em->flush();
+        }
+    }
+
+    /**
+     * Supprime/flush un utilisateur.
+     */
+    public function remove(User $user, bool $flush = true): void
+    {
+        $em = $this->getEntityManager();
+        $em->remove($user);
+        if ($flush) {
+            $em->flush();
+        }
+    }
+
+    /**
      * Used to upgrade (rehash) the user's password automatically over time.
      */
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
@@ -29,32 +53,52 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         }
 
         $user->setPassword($newHashedPassword);
-        $this->getEntityManager()->persist($user);
-        $this->getEntityManager()->flush();
+        $this->save($user, true);
     }
 
-    //    /**
-    //     * @return User[] Returns an array of User objects
-    //     */
-    //    public function findByExampleField($value): array
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->orderBy('u.id', 'ASC')
-    //            ->setMaxResults(10)
-    //            ->getQuery()
-    //            ->getResult()
-    //        ;
-    //    }
+    /**
+     * Pagination + recherche simple (username/email).
+     *
+     * @return array{0: User[], 1: int} [items, total]
+     */
+    public function findPaginated(int $page = 1, int $limit = 20, ?string $search = null): array
+    {
+        $page  = max(1, $page);
+        $limit = max(1, $limit);
 
-    //    public function findOneBySomeField($value): ?User
-    //    {
-    //        return $this->createQueryBuilder('u')
-    //            ->andWhere('u.exampleField = :val')
-    //            ->setParameter('val', $value)
-    //            ->getQuery()
-    //            ->getOneOrNullResult()
-    //        ;
-    //    }
+        $qb = $this->createQueryBuilder('u')
+            ->orderBy('u.username', 'ASC');
+
+        if ($search) {
+            $qb->andWhere('u.username LIKE :q OR u.email LIKE :q')
+               ->setParameter('q', '%' . trim($search) . '%');
+        }
+
+        // total
+        $countQb = clone $qb;
+        $total = (int) $countQb->select('COUNT(u.id)')
+            ->resetDQLPart('orderBy')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // page
+        $qb->setFirstResult(($page - 1) * $limit)
+           ->setMaxResults($limit);
+
+        $items = $qb->getQuery()->getResult();
+
+        return [$items, $total];
+    }
+
+    /**
+     * Trouver par username ou email.
+     */
+    public function findOneByUsernameOrEmail(string $term): ?User
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.username = :term OR u.email = :term')
+            ->setParameter('term', $term)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 }

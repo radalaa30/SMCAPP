@@ -1,0 +1,133 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Gestion des utilisateurs{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .stats-section {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .stats-header h2 {
+            margin: 0;
+        }
+        .table th, .table td {
+            vertical-align: middle;
+        }
+        .actions {
+            display: flex;
+            gap: 6px;
+        }
+        .pagination {
+            margin-top: 20px;
+        }
+        .search-box {
+            margin-bottom: 15px;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+<div class="container-fluid">
+    <div class="stats-section">
+        <div class="stats-header">
+            <h2><i class="fas fa-users-cog"></i> Gestion des utilisateurs</h2>
+            <a href="{{ path('admin_users_new') }}" class="btn btn-success">
+                <i class="fas fa-user-plus"></i> Nouvel utilisateur
+            </a>
+        </div>
+
+        {# Flash messages #}
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ label }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        {# Search form #}
+        <form method="get" class="search-box">
+            <div class="input-group">
+                <input type="text" name="q" value="{{ search }}" class="form-control"
+                       placeholder="Rechercher par nom d’utilisateur ou email...">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-search"></i> Rechercher
+                </button>
+            </div>
+        </form>
+
+        {# Table #}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th><i class="fas fa-id-badge"></i> ID</th>
+                        <th><i class="fas fa-user"></i> Nom d’utilisateur</th>
+                        <th><i class="fas fa-envelope"></i> Email</th>
+                        <th><i class="fas fa-user-shield"></i> Rôles</th>
+                        <th class="text-end"><i class="fas fa-cogs"></i> Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% for role in user.roles %}
+                                    {% if role != 'ROLE_USER' %}
+                                        <span class="badge bg-info text-dark">{{ role }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            </td>
+                            <td class="text-end">
+                                <div class="actions">
+                                    <a href="{{ path('admin_users_edit', {id: user.id}) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="post" action="{{ path('admin_users_delete', {id: user.id}) }}" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete_user_' ~ user.id) }}">
+                                        <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Aucun utilisateur trouvé.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if pages > 1 %}
+            <nav class="pagination">
+                <ul class="pagination">
+                    {% for p in 1..pages %}
+                        <li class="page-item {% if p == page %}active{% endif %}">
+                            <a class="page-link" href="{{ path('admin_users_index', {page: p, q: search}) }}">{{ p }}</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
