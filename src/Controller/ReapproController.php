@@ -57,8 +57,8 @@ public function index(
    
         
     // Nouvelle logique : recherche dans Blencours et Suividupreparationdujour
-    $blEnCours = $em->getRepository(Blencours::class)
-        ->findBy(['statut' => 'En cours']);
+    $blEnCours = $em->getRepository(Blencours::class)->findAll();
+
 
        
 

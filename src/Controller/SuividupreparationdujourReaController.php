@@ -26,7 +26,6 @@ class SuividupreparationdujourReaController extends AbstractController
         $startOfDay = (new \DateTimeImmutable('today', $tz))->setTime(0, 0, 0);
         $endOfDay   = $startOfDay->modify('+1 day'); // fenêtre demi-ouverte [start, end)
 
-        // DQL côté "last updated" (champ mapped : updatedAt => col DB updated_at)
         $lastUpdatedAt = $repository->createQueryBuilder('s')
             ->select('MAX(s.updatedAt) AS lastUpdatedAt')
             ->where('s.updatedAt >= :startOfDay AND s.updatedAt < :endOfDay')
@@ -44,6 +43,16 @@ class SuividupreparationdujourReaController extends AbstractController
         $statsClientGSBAutres  = $this->getStatsParClientGSBAutres($repository, $startOfDay, $endOfDay);
         $statsTransporteur     = $this->getStatsParTransporteur($repository, $startOfDay, $endOfDay);
 
+        // Prépare datasets pour les charts
+        $dataPreparateurs  = $this->prepareDataPreparateurs($statsPreparateur);
+        $dataAgences       = $this->prepareDataAgences($statsAgence);
+        $dataTransporteurs = $this->prepareDataTransporteurs($statsTransporteur);
+
+        // >>> Totaux transport pour le donut
+        $totalTermineesTransport = array_sum($dataTransporteurs['terminees'] ?? []);
+        $totalEnCoursTransport   = array_sum($dataTransporteurs['enCours'] ?? []);
+        // <<<
+
         return $this->render('suividupreparationdujour_rea/stats.html.twig', [
             'statsStatut'                        => $this->getStatsParEtat($repository, $startOfDay, $endOfDay),
             'statsPreparateur'                   => $statsPreparateur,
@@ -54,10 +63,12 @@ class SuividupreparationdujourReaController extends AbstractController
             'statsClientGSBLM'                   => $statsClientGSBLM,
             'statsClientGSBAutres'               => $statsClientGSBAutres,
             'statsTransporteur'                  => $statsTransporteur,
-            'dataPreparateurs'                   => $this->prepareDataPreparateurs($statsPreparateur),
-            'dataAgences'                        => $this->prepareDataAgences($statsAgence),
-            'dataTransporteurs'                  => $this->prepareDataTransporteurs($statsTransporteur),
+            'dataPreparateurs'                   => $dataPreparateurs,
+            'dataAgences'                        => $dataAgences,
+            'dataTransporteurs'                  => $dataTransporteurs,
             'lastUpdatedAt'                      => $lastUpdatedAt,
+
+            // Globaux déjà utilisés dans ton Twig
             'totalPreparationsClient'            => $statsGlobales['total_preparations_client'] ?? 0,
             'preparationsClientEnCours'          => $statsGlobales['preparations_client_en_cours'] ?? 0,
             'totalPreparationsAgence'            => $statsGlobales['total_preparations_agence'] ?? 0,
@@ -73,12 +84,14 @@ class SuividupreparationdujourReaController extends AbstractController
             'preparationsTermineesClientGSBAutres'=> $statsGlobales['preparations_terminees_client_gsb_autres'] ?? 0,
             'preparationsAgenceStatusKO'         => $statsGlobales['preparations_agence_status_ko'] ?? 0,
             'preparationsNonFlasheAvecDate'      => $statsGlobales['preparations_non_flashe_avec_date'] ?? 0,
+
+            // >>> Ces deux-là corrigent l’erreur Twig
+            'totalTermineesTransport'            => $totalTermineesTransport,
+            'totalEnCoursTransport'              => $totalEnCoursTransport,
+            // <<<
         ]);
     }
 
-    /**
-     * IMPORTANT : on utilise les colonnes de l'entity (snake_case) et le nom de table réel via la métadata.
-     */
     private function executeStatsQuery(
         SuividupreparationdujourReaRepository $repository,
         array $groupBy = [],
@@ -91,10 +104,11 @@ class SuividupreparationdujourReaController extends AbstractController
         $start = ($startOfDay ?? new \DateTimeImmutable('today', $tz))->setTime(0, 0, 0);
         $end   = ($endOfDay   ?? $start)->setTime(0, 0, 0)->modify('+1 day'); // [start, end)
 
-        // Nom de table issu de la métadata Doctrine (évite les divergences)
-        $table = $repository->getClassMetadata()->getTableName();
+        // Nom de table depuis la métadata Doctrine (sécurisé)
+        $meta  = $repository->getEntityManager()->getClassMetadata($repository->getClassName());
+        $table = $meta->getTableName();
 
-        // Map simple "alias affiché" -> "colonne DB"
+        // Map "alias lisible" -> colonne DB
         $toDb = static function (string $fieldName): string {
             return match ($fieldName) {
                 'Client'        => 'client',
@@ -108,13 +122,14 @@ class SuividupreparationdujourReaController extends AbstractController
 
         $selectFields = [];
 
-        // Champs groupés avec alias explicites (alias = même casse que le code consomme)
+        // Champs groupés avec alias stables
         foreach ($groupBy as $field) {
-            $fieldName = substr($field, (int)strpos($field, '.') + 1); // ex: "Client"
+            $fieldName = substr($field, (int)strpos($field, '.') + 1);
             if ($fieldName === 'Preparateur') {
+                // NOTE : on garde "Ligne suspendus" pour matcher le Twig existant
                 $selectFields[] = "CASE 
                     WHEN s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
-                    THEN 'Lignes suspendues' 
+                    THEN 'Ligne suspendus' 
                     ELSE s.preparateur 
                 END AS Preparateur";
             } else {
@@ -123,7 +138,7 @@ class SuividupreparationdujourReaController extends AbstractController
             }
         }
 
-        // Agrégats (COALESCE pour éviter NULL)
+        // Agrégats
         $selectFields = array_merge($selectFields, [
             'COUNT(s.id) AS total_preparations',
             "COALESCE(SUM(CASE WHEN s.flasher = :status_ok THEN 1 ELSE 0 END),0) AS preparations_terminees",
@@ -160,7 +175,7 @@ class SuividupreparationdujourReaController extends AbstractController
             "COALESCE(SUM(CASE WHEN s.flasher = :status_ko THEN 1 ELSE 0 END),0) AS preparations_status_ko",
             "COALESCE(SUM(CASE WHEN s.code_client LIKE :agency_prefix AND s.flasher = :status_ko THEN 1 ELSE 0 END),0) AS preparations_agence_status_ko",
 
-            // NON FLASHE + date (sur champ preparateur "daté")
+            // NON FLASHE + date sur libellé préparateur formaté date
             "COALESCE(SUM(CASE 
                 WHEN s.flasher = :status_non_flashe 
                  AND s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
@@ -179,7 +194,7 @@ class SuividupreparationdujourReaController extends AbstractController
                 END 
             AS DECIMAL(5,2)) AS pourcentage_avancement",
 
-            // liste préparateurs non flashés (lisible)
+            // liste préparateurs non flashés
             "GROUP_CONCAT(DISTINCT CASE 
                 WHEN (s.flasher IS NULL OR s.flasher = '') 
                  AND s.preparateur NOT REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
@@ -189,13 +204,10 @@ class SuividupreparationdujourReaController extends AbstractController
 
         $sql = 'SELECT ' . implode(', ', $selectFields) . " FROM $table s";
 
-        // Filtre date : colonne DB = updated_at
+        // filtre date (colonne DB = updated_at)
         $dateCondition = ' s.updated_at >= :startOfDay AND s.updated_at < :endOfDay';
         $whereClause = $whereClause ? $whereClause . ' AND ' . $dateCondition : $dateCondition;
-
-        if ($whereClause) {
-            $sql .= ' WHERE ' . $whereClause;
-        }
+        if ($whereClause) { $sql .= ' WHERE ' . $whereClause; }
 
         if (!empty($groupBy)) {
             $groupByFields = [];
@@ -204,7 +216,7 @@ class SuividupreparationdujourReaController extends AbstractController
                 if ($fieldName === 'Preparateur') {
                     $groupByFields[] = "CASE 
                         WHEN s.preparateur REGEXP '^[0-9]{2}/[0-9]{2}/[0-9]{4}' 
-                        THEN 'Lignes suspendues' 
+                        THEN 'Ligne suspendus' 
                         ELSE s.preparateur 
                     END";
                 } else {
@@ -294,7 +306,7 @@ class SuividupreparationdujourReaController extends AbstractController
     {
         return $this->executeStatsQuery(
             $repository,
-            ['s.Preparateur'], // alias attendu côté RSM/affichage
+            ['s.Preparateur'],
             "s.preparateur IS NOT NULL AND s.preparateur != ''",
             null,
             $startOfDay,
@@ -438,6 +450,7 @@ class SuividupreparationdujourReaController extends AbstractController
         return $data;
     }
 
+    /** Jeu de données pour le graphe Transport */
     private function prepareDataTransporteurs(array $stats): array
     {
         $data = [

@@ -16,27 +16,53 @@
             --ink:#212529;
             --muted:#6c757d;
             --card-bg:#ffffff;
-            --body-bg:#f5f6fa;
+            --body-bg:#0b1620;        /* fallback si l'image ne charge pas */
             --border:#e9ecef;
             --success:#20c997;
             --warning:#ffc107;
             --danger:#ef5350;
             --info:#17a2b8;
+
+            /* overlay au-dessus de l'image pour le contraste */
+            --bg-overlay: rgba(8, 15, 25, .55);
         }
 
         html,body { height: 100%; }
-        body {
-            padding-top: 62px;
-            background: var(--body-bg);
+
+        /* ==== IMAGE D'ARRIÈRE-PLAN ==== */
+        body.bg-image{
+            background:
+                linear-gradient(var(--bg-overlay), var(--bg-overlay)),
+                url('{{ asset("img/dep.png") }}') center / cover no-repeat fixed,
+                var(--body-bg);
             color: var(--ink);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            padding-top: 62px; /* espace sous navbar fixe */
+        }
+
+        /* Perf mobile : éviter background-attachment: fixed */
+        @media (max-width: 991.98px){
+            body.bg-image{
+                background-attachment: scroll;
+                background-position: center top;
+            }
+        }
+
+        /* OPTION : dégradé sans image (si tu veux basculer rapidement) */
+        body.bg-gradient{
+            padding-top: 62px;
+            background:
+                radial-gradient(1200px 800px at 80% 0%, #2cc0d3 0%, transparent 50%),
+                radial-gradient(900px 700px at 0% 100%, #1976d2 0%, transparent 45%),
+                linear-gradient(180deg, #0e2433, #0b1a26 60%, #0a1722 100%);
+            color: var(--ink);
         }
 
         /* Navbar */
         .navbar {
             position: fixed; top:0; left:0; right:0; z-index:1030;
-            box-shadow: 0 4px 18px rgba(0,0,0,.08);
+            box-shadow: 0 4px 18px rgba(0,0,0,.18);
             background: linear-gradient(90deg, var(--brand) 0%, var(--brand-2) 100%);
         }
         .navbar .nav-link { font-weight: 500; letter-spacing:.2px; }
@@ -53,13 +79,28 @@
             .dropdown-submenu:hover > .dropdown-menu { display: block; }
         }
 
-        /* Layout */
+        /* Layout de base */
         .main-content { padding: 24px; }
+
+        /* ===== Réduction de la largeur du <main> pour voir l'arrière-plan ===== */
+        .main-content.main-narrow{
+            /* largeur max responsive et centrée */
+            max-width: clamp(960px, 96vw, 1280px);
+            width: 100%;
+            margin: 20px auto 40px;    /* marges haut/bas et centrage */
+            padding-left: 16px;         /* un peu d'air sur les côtés */
+            padding-right: 16px;
+        }
+        @media (min-width: 1600px){
+            .main-content.main-narrow{ max-width: 1320px; }
+        }
+
+        /* Cartes, tableaux & helpers (inchangés) */
         .card {
             background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 14px;
-            box-shadow: 0 4px 14px rgba(0,0,0,.05);
+            box-shadow: 0 4px 14px rgba(0,0,0,.07);
         }
         .card-header {
             border-bottom: 1px solid var(--border);
@@ -67,16 +108,12 @@
             color: #fff;
             border-radius: 14px 14px 0 0;
         }
-
-        /* Tables */
         .table thead th {
             position: sticky; top: 0; z-index: 5;
             background: #f8f9fc; border-bottom: 1px solid var(--border);
         }
         .table td, .table th { vertical-align: middle; }
         .table .num { text-align: right; font-variant-numeric: tabular-nums; }
-
-        /* Badges & helpers */
         .badge-soft { background: #eef1ff; color: var(--brand); border:1px solid #e0e4ff; }
         .kpi { display:flex; align-items:center; gap:.75rem; }
         .kpi .icon{
@@ -84,21 +121,17 @@
             display:grid; place-items:center;
             background:#eef4ff; color:var(--brand);
         }
-
-        /* Chart containers */
         .chart-wrap { height: 420px; }
-        .section-title {
-            margin:0; font-weight:700; letter-spacing:.2px;
-        }
+        .section-title { margin:0; font-weight:700; letter-spacing:.2px; }
         .section-sub { color:#f0f0f0; opacity:.9; }
-
-        /* Footer spacer for mobile safe area */
         .page-end { height: 12px; }
     </style>
 
     {% block stylesheets %}{% endblock %}
 </head>
-<body>
+
+{# Applique l'image de fond ici #}
+<body class="bg-image">
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container-fluid px-3">
         <a class="navbar-brand fw-bold" href="#">SMC Dashboard</a>
@@ -198,7 +231,8 @@
     </div>
 </nav>
 
-<main class="main-content container-fluid">
+{# Ajout de la classe main-narrow pour limiter la largeur #}
+<main class="main-content container-fluid main-narrow">
     {% include 'partials/flash.html.twig' %}
     {% block body %}{% endblock %}
 </main>

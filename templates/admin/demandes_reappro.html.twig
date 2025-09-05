@@ -3,416 +3,373 @@
 {% block title %}Liste des demandes de réapprovisionnement{% endblock %}
 
 {% block stylesheets %}
-   
+<style>
+  /* ===== Layout “centré + verre dépoli” ===== */
+  :root{
+    --glass-bg: rgba(255,255,255,.82);
+    --glass-brd: rgba(255,255,255,.38);
+    --glass-shadow: 0 8px 28px rgba(0,0,0,.12);
+    --radius-xl: 18px;
+  }
+
+  /* Conteneur global : laisse respirer le background */
+  .page-shell{
+    display:flex;
+    justify-content:center;
+    padding: 26px 20px 40px;
+  }
+  /* Largeur max contrôlée : ~1200px */
+  .content-shell{
+    width: min(1200px, 94vw);
+  }
+
+  /* Cartes verre dépoli */
+  .glass-card{
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-brd);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(6px) saturate(110%);
+    -webkit-backdrop-filter: blur(6px) saturate(110%);
+  }
+
+  /* En-tête titre + actions */
+  .header-block{
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .dashboard-title{
+    margin:0;
+    font-weight: 700;
+    letter-spacing:.2px;
+  }
+  .action-buttons{
+    display:flex; flex-wrap:wrap; gap:10px;
+  }
+  .btn-action{
+    display:inline-flex; align-items:center; gap:.4rem;
+    border-radius: 12px;
+    padding: .6rem .9rem;
+    box-shadow: 0 6px 16px rgba(0,0,0,.08);
+    border: 1px solid rgba(0,0,0,.05);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn-action:hover{ transform: translateY(-2px); box-shadow: 0 10px 22px rgba(0,0,0,.12); }
+
+  /* Grille KPI compacte et responsive */
+  .kpis-grid{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px,1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .stat-card{ padding: 16px; }
+  .stat-card-body{ display:flex; align-items:center; gap:14px; }
+  .stat-card-icon{
+    width:56px; height:56px; border-radius:14px;
+    display:grid; place-items:center; color:#fff;
+  }
+  .stat-card-title{
+    margin:0 0 6px;
+    text-transform: uppercase;
+    letter-spacing:.3px;
+    font-size:.85rem;
+    opacity:.8;
+  }
+  .stat-card-value{
+    font-size: 1.8rem; font-weight: 700; line-height: 1;
+  }
+
+  /* Blocs tableau & filtres */
+  .block{
+    padding: 0;
+    overflow: hidden;
+  }
+  .block + .block{ margin-top: 16px; }
+
+  .block-header{
+    padding: 14px 18px;
+    display:flex; align-items:center; gap:8px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color:#fff;
+  }
+  .block-header h5{ margin:0; font-weight:700; letter-spacing:.2px; }
+
+  .block-body{
+    padding: 16px 18px;
+  }
+
+  /* Filtres */
+  .filter-grid{
+    display:grid; gap: 12px;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .fg-4{ grid-column: span 4; }
+  .fg-3{ grid-column: span 3; }
+  .fg-2{ grid-column: span 2; }
+  .fg-12{ grid-column: span 12; }
+
+  @media (max-width: 991.98px){
+    .fg-4, .fg-3, .fg-2{ grid-column: span 12; }
+  }
+
+  .form-label{ font-weight: 600; opacity:.85; margin-bottom:.35rem; }
+  .form-control, .form-select{
+    border-radius: 10px;
+    border: 1px solid rgba(0,0,0,.08);
+    padding: .65rem .8rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4);
+    background: rgba(255,255,255,.92);
+  }
+
+  /* Tableau */
+  .table-wrap{ overflow: auto; }
+  .custom-table thead th{
+    background: rgba(0,0,0,.03);
+    border-bottom: 2px solid rgba(0,0,0,.08);
+    font-weight:700; color:#2c3e50;
+  }
+  .custom-table tbody td{
+    border-bottom: 1px solid rgba(0,0,0,.06);
+  }
+
+  /* Badges statut */
+  .status-badge{
+    padding:.45rem .8rem; border-radius: 999px; font-weight:600; font-size:.85rem;
+    border:2px solid transparent;
+  }
+  .status-valide{ background:#d4edda; color:#155724; border-color:#28a745; }
+  .status-annule{ background:#f8d7da; color:#721c24; border-color:#dc3545; }
+  .status-encours{ background:#fff3cd; color:#856404; border-color:#ffc107; }
+
+  /* Boutons ligne */
+  .btn-view, .btn-edit, .btn-delete{
+    display:inline-grid; place-items:center;
+    width:36px; height:36px; border-radius:10px; border:1px solid rgba(0,0,0,.06);
+    background:#fff;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .btn-view:hover{ background:#eef8ff; transform: translateY(-1px); }
+  .btn-edit:hover{ background:#f7f1ff; transform: translateY(-1px); }
+  .btn-delete:hover{ background:#fff1f1; transform: translateY(-1px); }
+
+  /* Effets de focus */
+  .form-control:focus, .form-select:focus, .btn:focus{
+    box-shadow: 0 0 0 .2rem rgba(13,110,253,.15);
+    outline: none;
+  }
+</style>
 {% endblock %}
 
 {% block body %}
-    <div class="container">
-        <h1 class="dashboard-title">Liste des demandes de réapprovisionnement</h1>
-       {# Groupe de boutons d'action #}
-<div class="action-header mb-4">
-    <div class="action-buttons">
-        <a href="{{ path('add_reappro') }}" class="btn btn-action btn-success">
-            <i class="fas fa-plus-circle me-2"></i>
-            Nouvelle demande
-        </a>
-        <a href="{{ path('admin_dashboard') }}" class="btn btn-action btn-secondary">
-            <i class="fas fa-sync-alt me-2"></i>
-            Actualiser
-        </a>
-        <a href="{{ path('app_blencours_index') }}" class="btn btn-action btn-secondary">
-            <i class="fas fa-sync-alt me-2"></i>
-            Ajouter Un BL
-        </a>
-    </div>
-</div>
-        {# Section des statistiques #}
-        <div class="stats-wrapper mb-4">
-            <div class="row">
-                {% set statsData = [
-                    {'title': 'En Attente', 'value': stats.palettesEnAttente, 'icon': 'fas fa-clock', 'color': 'warning'},
-                    {'title': 'En Cours', 'value': stats.palettesEnCours, 'icon': 'fas fa-spinner', 'color': 'info'},
-                    {'title': 'Terminées', 'value': stats.lignesTermineesCariste, 'icon': 'fas fa-check', 'color': 'success'},
-                    {'title': 'Total Demandes', 'value': stats.totalDemandes, 'icon': 'fas fa-boxes', 'color': 'primary'}
-                ] %}
-                
-                {% for stat in statsData %}
-                    <div class="col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-card-body">
-                                <div class="stat-card-icon bg-{{ stat.color }}">
-                                    <i class="{{ stat.icon }}"></i>
-                                </div>
-                                <div class="stat-card-info">
-                                    <h6 class="stat-card-title">{{ stat.title }}</h6>
-                                    <div class="stat-card-value">{{ stat.value }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
+  <div class="page-shell">
+    <div class="content-shell">
 
-            {# Statistiques par cariste #}
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="data-card">
-                        <div class="card-header-custom">
-                            <h5 class="mb-0">
-                                <i class="fas fa-user-check me-2"></i>
-                                Palettes validées par cariste
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table custom-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Cariste</th>
-                                            <th class="text-center">Palettes Validées</th>
-                                            <th class="text-end">Progression</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for username, nbPalettes in stats.palettesParCariste %}
-                                            <tr>
-                                                <td>
-                                                    <i class="fas fa-user me-2"></i> {{ username }}
-                                                </td>
-                                                <td class="text-center">
-                                                    <span class="badge bg-success">{{ nbPalettes }}</span>
-                                                </td>
-                                                <td class="text-end">
-                                                    {% set percentage = (nbPalettes / stats.totalDemandes * 100)|round %}
-                                                    <div class="progress">
-                                                        <div class="progress-bar bg-success"
-                                                             style="width: {{ percentage }}%"
-                                                             aria-valuenow="{{ percentage }}"
-                                                             aria-valuemin="0" 
-                                                             aria-valuemax="100">
-                                                            {{ percentage }}%
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      {# HEADER + ACTIONS #}
+      <div class="glass-card header-block">
+        <h1 class="dashboard-title">
+          Liste des demandes de réapprovisionnement
+        </h1>
+        <div class="action-buttons">
+          <a href="{{ path('add_reappro') }}" class="btn btn-success btn-action">
+            <i class="fas fa-plus-circle"></i> Nouvelle demande
+          </a>
+          <a href="{{ path('admin_dashboard') }}" class="btn btn-secondary btn-action">
+            <i class="fas fa-sync-alt"></i> Actualiser
+          </a>
+          <a href="{{ path('app_blencours_index') }}" class="btn btn-secondary btn-action">
+            <i class="fas fa-file-circle-plus"></i> Ajouter un BL
+          </a>
         </div>
+      </div>
 
-        {# Formulaire de filtres #}
-        <div class="filter-card">
-            <form method="get">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="dateDebut" class="form-label">Date début</label>
-                        <input type="date" class="form-control" id="dateDebut" name="dateDebut" value="{{ filters.dateDebut }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="dateFin" class="form-label">Date fin</label>
-                        <input type="date" class="form-control" id="dateFin" name="dateFin" value="{{ filters.dateFin }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="idCariste" class="form-label">Cariste</label>
-                        <select class="form-select" id="idCariste" name="idCariste">
-                            <option value="">Tous</option>
-                            {% for cariste in caristes %}
-                                <option value="{{ cariste.idCariste }}" {{ filters.idCariste == cariste.idCariste ? 'selected' : '' }}>
-                                    {{ cariste.username }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="idPreparateur" class="form-label">Préparateur</label>
-                        <select class="form-select" id="idPreparateur" name="idPreparateur">
-                            <option value="">Tous</option>
-                            {% for preparateur in preparateurs %}
-                                <option value="{{ preparateur.idPreparateur }}" {{ filters.idPreparateur == preparateur.idPreparateur ? 'selected' : '' }}>
-                                    {{ preparateur.username }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-filter me-2"></i> Filtrer
+      {# KPIs #}
+      <div class="glass-card block">
+        <div class="block-body">
+          <div class="kpis-grid">
+            {% set statsData = [
+              {'title': 'En Attente', 'value': stats.palettesEnAttente, 'icon': 'fas fa-clock',   'bg': 'linear-gradient(135deg, #FFDA7A, #FFC107)'},
+              {'title': 'En Cours',   'value': stats.palettesEnCours,   'icon': 'fas fa-spinner', 'bg': 'linear-gradient(135deg, #86D3FF, #00AEEF)'},
+              {'title': 'Terminées',  'value': stats.lignesTermineesCariste, 'icon': 'fas fa-check',  'bg': 'linear-gradient(135deg, #83E8A6, #27AE60)'},
+              {'title': 'Total',      'value': stats.totalDemandes,     'icon': 'fas fa-boxes',  'bg': 'linear-gradient(135deg, #B4B5FF, #6C63FF)'}
+            ] %}
+
+            {% for stat in statsData %}
+              <div class="stat-card glass-card">
+                <div class="stat-card-body">
+                  <div class="stat-card-icon" style="background: {{ stat.bg }}">
+                    <i class="{{ stat.icon }}"></i>
+                  </div>
+                  <div>
+                    <div class="stat-card-title">{{ stat.title }}</div>
+                    <div class="stat-card-value">{{ stat.value }}</div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+
+          {# Par cariste #}
+          <div class="glass-card block">
+            <div class="block-header">
+              <h5><i class="fas fa-user-check me-2"></i> Palettes validées par cariste</h5>
+            </div>
+            <div class="block-body">
+              <div class="table-wrap">
+                <table class="table custom-table align-middle">
+                  <thead>
+                    <tr>
+                      <th>Cariste</th>
+                      <th class="text-center">Palettes Validées</th>
+                      <th class="text-end">Progression</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                  {% for username, nbPalettes in stats.palettesParCariste %}
+                    <tr>
+                      <td><i class="fas fa-user me-2 text-muted"></i>{{ username }}</td>
+                      <td class="text-center">
+                        <span class="badge bg-success">{{ nbPalettes }}</span>
+                      </td>
+                      <td class="text-end">
+                        {% set percentage = (stats.totalDemandes > 0 ? (nbPalettes / stats.totalDemandes * 100) : 0)|round %}
+                        <div class="progress" style="height: 10px;">
+                          <div class="progress-bar bg-success" style="width: {{ percentage }}%" aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <small class="text-muted">{{ percentage }}%</small>
+                      </td>
+                    </tr>
+                  {% else %}
+                    <tr>
+                      <td colspan="3" class="text-center text-muted">Aucune donnée</td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {# FILTRES #}
+      <div class="glass-card block">
+        <div class="block-header">
+          <h5><i class="fas fa-filter me-2"></i> Filtres</h5>
+        </div>
+        <div class="block-body">
+          <form method="get">
+            <div class="filter-grid">
+              <div class="fg-3">
+                <label for="dateDebut" class="form-label">Date début</label>
+                <input type="date" class="form-control" id="dateDebut" name="dateDebut" value="{{ filters.dateDebut }}">
+              </div>
+              <div class="fg-3">
+                <label for="dateFin" class="form-label">Date fin</label>
+                <input type="date" class="form-control" id="dateFin" name="dateFin" value="{{ filters.dateFin }}">
+              </div>
+              <div class="fg-3">
+                <label for="idCariste" class="form-label">Cariste</label>
+                <select class="form-select" id="idCariste" name="idCariste">
+                  <option value="">Tous</option>
+                  {% for cariste in caristes %}
+                    <option value="{{ cariste.idCariste }}" {{ filters.idCariste == cariste.idCariste ? 'selected' : '' }}>
+                      {{ cariste.username }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="fg-3">
+                <label for="idPreparateur" class="form-label">Préparateur</label>
+                <select class="form-select" id="idPreparateur" name="idPreparateur">
+                  <option value="">Tous</option>
+                  {% for preparateur in preparateurs %}
+                    <option value="{{ preparateur.idPreparateur }}" {{ filters.idPreparateur == preparateur.idPreparateur ? 'selected' : '' }}>
+                      {{ preparateur.username }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="fg-12 d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary btn-action">
+                  <i class="fas fa-filter me-2"></i> Filtrer
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {# TABLEAU DES DEMANDES #}
+      <div class="glass-card block">
+        <div class="block-header">
+          <h5><i class="fas fa-list me-2"></i> Liste des éléments</h5>
+        </div>
+        <div class="block-body">
+          <div class="table-wrap">
+            <table class="table custom-table align-middle">
+              <thead>
+                <tr>
+                  <th class="text-center">#</th>
+                  <th class="text-center">Préparateur</th>
+                  <th class="text-center">Cariste</th>
+                  <th class="text-center">Adresse</th>
+                  <th class="text-center">Statut</th>
+                  <th class="text-center">Créé le</th>
+                  <th class="text-center">Mis à jour le</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for demande in demandes %}
+                <tr>
+                  <td class="text-center">{{ loop.revindex }}</td>
+                  <td class="text-center">{{ demande.UsernamePrep }}</td>
+                  <td class="text-center">{{ demande.UsernameCariste ?? 'Non assigné' }}</td>
+                  <td class="text-center">{{ demande.adresse }}</td>
+                  <td class="text-center">
+                    <span class="status-badge
+                      {{ demande.statut == 'V' ? 'status-valide' :
+                         (demande.statut == 'A' ? 'status-annule' : 'status-encours') }}">
+                      {{ demande.statut == 'V' ? 'Validé' :
+                         (demande.statut == 'A' ? 'En attente' : 'En cours') }}
+                    </span>
+                  </td>
+                  <td class="text-center">{{ demande.createAt|date('d/m/Y H:i') }}</td>
+                  <td class="text-center">{{ demande.updateAt ? demande.updateAt|date('d/m/Y H:i') : '-' }}</td>
+                  <td class="text-center">
+                    <div class="btn-group" role="group">
+                      <a href="{{ path('app_demande_reappro_show', {'id': demande.id}) }}" class="btn-view" title="Voir">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                      <a href="{{ path('app_demande_reappro_edit', {'id': demande.id}) }}" class="btn-edit" title="Modifier">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      <form method="post"
+                            action="{{ path('app_demande_reappro_delete', {'id': demande.id}) }}"
+                            style="display:inline-block"
+                            onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette demande ?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ demande.id) }}">
+                        <button type="submit" class="btn-delete" title="Supprimer">
+                          <i class="fas fa-trash"></i>
                         </button>
+                      </form>
                     </div>
-                </div>
-            </form>
+                  </td>
+                </tr>
+              {% else %}
+                <tr>
+                  <td colspan="8" class="text-center text-muted">Aucune demande trouvée</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
+      </div>
 
-        {# Tableau des demandes #}
-        <div class="data-card">
-            <div class="card-header-custom">
-                <h5 class="mb-0">
-                    <i class="fas fa-list me-2"></i>
-                    Liste des éléments
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table custom-table">
-                        <thead>
-                            <tr>
-                                <th class="text-center">#</th>
-                                <th class="text-center">Préparateur</th>
-                                <th class="text-center">Cariste</th>
-                                <th class="text-center">Adresse</th>
-                                <th class="text-center">Statut</th>
-                                <th class="text-center">Créé le</th>
-                                <th class="text-center">Mis à jour le</th>
-                                <th class="text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for demande in demandes %}
-                                <tr>
-                                    <td class="text-center">{{ loop.revindex }}</td>
-                                    <td class="text-center">{{ demande.UsernamePrep }}</td>
-                                    <td class="text-center">{{ demande.UsernameCariste ?? 'Non assigné' }}</td>
-                                    <td class="text-center">{{ demande.adresse }}</td>
-                                    <td class="text-center">
-                                        <span class="status-badge {{ demande.statut == 'V' ? 'status-valide' : (demande.statut == 'A' ? 'status-annule' : 'status-encours') }}">
-                                        {{ demande.statut == 'V' ? 'Validé' : (demande.statut == 'A' ? 'En attente' : 'En cours') }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center">{{ demande.createAt|date('d/m/Y H:i') }}</td>
-                                    <td class="text-center">{{ demande.updateAt ? demande.updateAt|date('d/m/Y H:i') : '-' }}</td>
-                                    <td class="text-center">
-                                        <div class="btn-group" role="group">
-                                            <a href="{{ path('app_demande_reappro_show', {'id': demande.id}) }}" 
-                                               class="btn btn-view" 
-                                               title="Voir">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{{ path('app_demande_reappro_edit', {'id': demande.id}) }}" 
-                                               class="btn btn-edit" 
-                                               title="Modifier">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <form method="post" 
-                                                  action="{{ path('app_demande_reappro_delete', {'id': demande.id}) }}" 
-                                                  style="display: inline-block"
-                                                  onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette demande ?');">
-                                                <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ demande.id) }}">
-                                                <button type="submit" class="btn btn-delete" title="Supprimer">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% else %}
-                                <tr>
-                                    <td colspan="8" class="text-center">Aucune demande trouvée</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
-    <style>
-    /* Variables globales */
-:root {
-    --primary-color: #2c3e50;
-    --secondary-color: #34495e;
-    --success-color: #27ae60;
-    --warning-color: #f39c12;
-    --info-color: #3498db;
-    --danger-color: #e74c3c;
-    --gray-light: #f8f9fa;
-    --gray-medium: #e9ecef;
-    --border-radius: 8px;
-    --box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-
-/* Style général du conteneur */
-.container {
-    padding: 2rem 1rem;
-    background-color: var(--gray-light);
-    max-width: 98% !important; /* Force la largeur maximale à 97% */
-    width: 98%; /* Définit la largeur à 97% */
-    margin: 0 auto; /* Centre le conteneur */
-}
-
-/* Pour s'assurer que Bootstrap ne surcharge pas ces valeurs */
-@media (min-width: 1200px) {
-    .container {
-        max-width: 98% !important;
-        width: 98%;
-    }
-}
-/* Titre du tableau de bord */
-.dashboard-title {
-    color: var(--primary-color);
-    font-size: 2rem;
-    font-weight: 600;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
-    border-bottom: 3px solid var(--primary-color);
-}
-
-/* Cartes de statistiques */
-.stat-card {
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-bottom: 1.5rem;
-    transition: transform 0.2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-}
-
-.stat-card-body {
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-}
-
-.stat-card-icon {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 1rem;
-}
-
-.stat-card-icon i {
-    font-size: 1.5rem;
-    color: white;
-}
-
-.stat-card-info {
-    flex-grow: 1;
-}
-
-.stat-card-title {
-    color: var(--secondary-color);
-    margin-bottom: 0.5rem;
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.stat-card-value {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-/* Cartes de données */
-.data-card {
-    background: white;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-bottom: 2rem;
-}
-
-.card-header-custom {
-    background-color: var(--primary-color);
-    color: white;
-    padding: 1rem 1.5rem;
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
-}
-
-.card-header-custom h5 {
-    margin: 0;
-    font-size: 1.1rem;
-}
-
-/* Tableau personnalisé */
-.custom-table {
-    margin: 0;
-}
-
-.custom-table thead th {
-    background-color: var(--gray-medium);
-    border-bottom: 2px solid var(--primary-color);
-    padding: 1rem;
-    font-weight: 600;
-    color: var(--primary-color);
-}
-
-.custom-table tbody td {
-    padding: 1rem;
-    vertical-align: middle;
-    border-bottom: 1px solid var(--gray-medium);
-}
-
-/* Badge de statut */
-.status-badge {
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-weight: 500;
-    font-size: 0.85rem;
-    display: inline-block;
-}
-
-
-.status-valide {
-    background-color: #d4edda;
-    color: #155724;
-    border: 2px solid #28a745;
-}
-
-.status-annule {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 2px solid #dc3545;
-}
-
-.status-encours {
-    background-color: #fff3cd;
-    color: #856404;
-    border: 2px solid #ffc107;
-}
-.status-badge.status-enattente {
-    background-color: #fff3cd;
-    color: #856404;
-}
-
-.status-badge.status-encours {
-    background-color: #cce5ff;
-    color: #004085;
-}
-
-.status-badge.status-termine {
-    background-color: #d4edda;
-    color: #155724;
-}
-
-/* Formulaire de filtres */
-.filter-card {
-    background: white;
-    padding: 1.5rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    margin-bottom: 2rem;
-}
-
-.form-label {
-    color: var(--secondary-color);
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-}
-
-.form-control, .form-select {
-    border: 1px solid var(--gray-medium);
-    border-radius: var(--border-radius);
-    padding: 0.}
-    </style>
+  </div>
 {% endblock %}

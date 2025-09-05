@@ -4,325 +4,122 @@
 
 {% block stylesheets %}
 <style>
-    .dashboard-container {
-        padding: 20px 0;
+    .dashboard-container{ padding:20px 0; }
+    .card{ border-radius:8px; box-shadow:0 4px 6px rgba(0,0,0,.1); margin-bottom:20px; }
+    .card-header{ background:#f8f9fa; border-bottom:1px solid rgba(0,0,0,.125); padding:1rem 1.25rem; }
+    .card-header h4{ margin:0; font-weight:600; color:#343a40; }
+    .card-body{ padding:1.5rem; }
+
+    .page-title{
+        margin-bottom:20px; color:#343a40; font-weight:600;
+        display:flex; justify-content:space-between; align-items:center;
+        gap:12px; flex-wrap:wrap;
     }
-    .card {
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 20px;
+    .page-actions{ display:flex; gap:10px; }
+
+    .status-badge{ padding:.35em .65em; font-size:.75em; font-weight:700; border-radius:.25rem; display:inline-block; min-width:80px; text-align:center; }
+    .status-pending{ background:#ffc107; color:#212529; }
+    .status-processing{ background:#17a2b8; color:#fff; }
+    .status-completed{ background:#28a745; color:#fff; }
+
+    .stats-container{ display:flex; flex-wrap:wrap; gap:15px; margin-bottom:20px; }
+    .stat-card{ flex:1; min-width:200px; border-radius:8px; padding:15px; display:flex; flex-direction:column; align-items:center; box-shadow:0 4px 6px rgba(0,0,0,.1); }
+    .stat-card-title{ font-size:.9rem; color:#6c757d; margin-bottom:5px; }
+    .stat-card-value{ font-size:1.8rem; font-weight:700; }
+    .stat-card-green{ background:#d1e7dd; border-left:4px solid #198754; }
+    .stat-card-blue{ background:#cfe2ff; border-left:4px solid #0d6efd; }
+    .stat-card-yellow{ background:#fff3cd; border-left:4px solid #ffc107; }
+    .stat-card-cyan{ background:#d1ecf1; border-left:4px solid #17a2b8; }
+    .stat-card-red{ background:#f8d7da; border-left:4px solid #dc3545; }
+
+    .filters-card{ background:#f8f9fa; border-radius:8px; border:1px solid #dee2e6; margin-bottom:20px; }
+    .filters-body{ padding:15px; }
+    .filters-title{ font-weight:600; color:#495057; padding:10px 15px; border-bottom:1px solid #dee2e6; display:flex; justify-content:space-between; align-items:center; }
+    .filter-row{ display:flex; flex-wrap:wrap; gap:15px; margin-bottom:15px; }
+    .filter-col{ flex:1; min-width:200px; }
+    .filter-actions{ display:flex; justify-content:flex-end; gap:10px; padding-top:10px; }
+
+    .action-btn{ padding:.25rem .5rem; font-size:.875rem; border-radius:4px; margin-right:5px; }
+    .view-btn{ color:#0d6efd; border:1px solid #0d6efd; background:transparent; }
+    .view-btn:hover{ background:#0d6efd; color:#fff; }
+    .edit-btn{ color:#ffc107; border:1px solid #ffc107; background:transparent; }
+    .edit-btn:hover{ background:#ffc107; color:#212529; }
+    .delete-btn{ color:#dc3545; border:1px solid #dc3545; background:transparent; }
+    .delete-btn:hover{ background:#dc3545; color:#fff; }
+    .complete-btn{ color:#198754; border:1px solid #198754; background:transparent; }
+    .complete-btn:hover{ background:#198754; color:#fff; }
+
+    .create-btn{ background:#0d6efd; color:#fff; padding:.5rem 1rem; border-radius:4px; text-decoration:none; font-weight:500; transition:.2s; }
+    .create-btn:hover{ background:#0b5ed7; color:#fff; text-decoration:none; }
+
+    .danger-ghost{
+        background:transparent; border:1px solid #dc3545; color:#dc3545; padding:.5rem 1rem; border-radius:4px; font-weight:500;
     }
-    .card-header {
-        background-color: #f8f9fa;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-        padding: 1rem 1.25rem;
-    }
-    .card-header h4 {
-        margin: 0;
-        font-weight: 600;
-        color: #343a40;
-    }
-    .card-body {
-        padding: 1.5rem;
-    }
-    .page-title {
-        margin-bottom: 20px;
-        color: #343a40;
-        font-weight: 600;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    /* Styles pour les badges de statut */
-    .status-badge {
-        padding: 0.35em 0.65em;
-        font-size: 0.75em;
-        font-weight: 700;
-        border-radius: 0.25rem;
-        display: inline-block;
-        text-align: center;
-        min-width: 80px;
-    }
-    .status-pending {
-        background-color: #ffc107;
-        color: #212529;
-    }
-    .status-processing {
-        background-color: #17a2b8;
-        color: white;
-    }
-    .status-completed {
-        background-color: #28a745;
-        color: white;
-    }
-    /* Styles pour les cartes de statistiques */
-    .stats-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin-bottom: 20px;
-    }
-    .stat-card {
-        flex: 1;
-        min-width: 200px;
-        border-radius: 8px;
-        padding: 15px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-    .stat-card-title {
-        font-size: 0.9rem;
-        color: #6c757d;
-        margin-bottom: 5px;
-    }
-    .stat-card-value {
-        font-size: 1.8rem;
-        font-weight: 700;
-    }
-    .stat-card-green {
-        background-color: #d1e7dd;
-        border-left: 4px solid #198754;
-    }
-    .stat-card-blue {
-        background-color: #cfe2ff;
-        border-left: 4px solid #0d6efd;
-    }
-    .stat-card-yellow {
-        background-color: #fff3cd;
-        border-left: 4px solid #ffc107;
-    }
-    .stat-card-cyan {
-        background-color: #d1ecf1;
-        border-left: 4px solid #17a2b8;
-    }
-    .stat-card-red {
-        background-color: #f8d7da;
-        border-left: 4px solid #dc3545;
-    }
-    /* Styles pour les filtres */
-    .filters-card {
-        background-color: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 20px;
-    }
-    .filters-body {
-        padding: 15px;
-    }
-    .filters-title {
-        font-weight: 600;
-        color: #495057;
-        padding: 10px 15px;
-        border-bottom: 1px solid #dee2e6;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .filter-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin-bottom: 15px;
-    }
-    .filter-col {
-        flex: 1;
-        min-width: 200px;
-    }
-    .filter-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        padding-top: 10px;
-    }
-    /* Styles pour les actions */
-    .action-btn {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
-        border-radius: 4px;
-        margin-right: 5px;
-    }
-    .view-btn {
-        color: #0d6efd;
-        border: 1px solid #0d6efd;
-        background-color: transparent;
-    }
-    .view-btn:hover {
-        background-color: #0d6efd;
-        color: white;
-    }
-    .edit-btn {
-        color: #ffc107;
-        border: 1px solid #ffc107;
-        background-color: transparent;
-    }
-    .edit-btn:hover {
-        background-color: #ffc107;
-        color: #212529;
-    }
-    .delete-btn {
-        color: #dc3545;
-        border: 1px solid #dc3545;
-        background-color: transparent;
-    }
-    .delete-btn:hover {
-        background-color: #dc3545;
-        color: white;
-    }
-    .complete-btn {
-        color: #198754;
-        border: 1px solid #198754;
-        background-color: transparent;
-    }
-    .complete-btn:hover {
-        background-color: #198754;
-        color: white;
-    }
-    .create-btn {
-        background-color: #0d6efd;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 4px;
-        text-decoration: none;
-        display: inline-block;
-        font-weight: 500;
-        transition: all 0.2s;
-    }
-    .create-btn:hover {
-        background-color: #0b5ed7;
-        color: white;
-        text-decoration: none;
-    }
-    /* Styles pour les tableaux */
-    .bl-table {
-        width: 100%;
-        margin-bottom: 0;
-    }
-    .bl-table th {
-        background-color: #f2f7ff;
-        color: #495057;
-        font-weight: 600;
-        border-top: none;
-    }
-    .bl-table thead th {
-        position: sticky;
-        top: 0;
-        background-color: #f2f7ff;
-        z-index: 5;
-    }
-    .bl-table td {
-        vertical-align: middle;
-    }
-    /* Badges pour les palettes */
-    .badge-ok {
-        background-color: #17a2b8;
-        color: white;
-        border-radius: 4px;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-        margin-right: 5px;
-    }
-    .badge-nok {
-        background-color: #dc3545;
-        color: white;
-        border-radius: 4px;
-        padding: 0.25rem 0.5rem;
-        font-size: 0.75rem;
-    }
-    /* Pagination */
-    .pagination-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 15px;
-        background-color: #f8f9fa;
-        border-top: 1px solid #dee2e6;
-    }
-    .pagination-info {
-        color: #6c757d;
-        font-size: 0.875rem;
-    }
-    .pagination {
-        display: flex;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-    .page-item {
-        margin: 0 2px;
-    }
-    .page-link {
-        padding: 0.375rem 0.75rem;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        color: #0d6efd;
-        text-decoration: none;
-        font-size: 0.875rem;
-    }
-    .page-link:hover {
-        background-color: #e9ecef;
-    }
-    .page-item.active .page-link {
-        background-color: #0d6efd;
-        color: white;
-        border-color: #0d6efd;
-    }
-    .page-item.disabled .page-link {
-        color: #6c757d;
-        pointer-events: none;
-        background-color: #fff;
-        border-color: #dee2e6;
-    }
-    /* Sortable headers */
-    .sortable {
-        cursor: pointer;
-        position: relative;
-    }
-    .sortable:hover {
-        background-color: #e2e6ea;
-    }
-    .sortable::after {
-        content: "↕";
-        position: absolute;
-        right: 5px;
-        color: #adb5bd;
-    }
-    .sortable.asc::after {
-        content: "↑";
-        color: #495057;
-    }
-    .sortable.desc::after {
-        content: "↓";
-        color: #495057;
-    }
+    .danger-ghost:hover{ background:#dc3545; color:#fff; }
+
+    .bl-table{ width:100%; margin-bottom:0; }
+    .bl-table th{ background:#f2f7ff; color:#495057; font-weight:600; border-top:none; }
+    .bl-table thead th{ position:sticky; top:0; background:#f2f7ff; z-index:5; }
+    .bl-table td{ vertical-align:middle; }
+
+    .badge-ok{ background:#17a2b8; color:#fff; border-radius:4px; padding:.25rem .5rem; font-size:.75rem; margin-right:5px; }
+    .badge-nok{ background:#dc3545; color:#fff; border-radius:4px; padding:.25rem .5rem; font-size:.75rem; }
+
+    .pagination-container{ display:flex; justify-content:space-between; align-items:center; padding:10px 15px; background:#f8f9fa; border-top:1px solid #dee2e6; }
+    .pagination-info{ color:#6c757d; font-size:.875rem; }
+    .pagination{ display:flex; list-style:none; margin:0; padding:0; }
+    .page-item{ margin:0 2px; }
+    .page-link{ padding:.375rem .75rem; border:1px solid #dee2e6; border-radius:4px; color:#0d6efd; text-decoration:none; font-size:.875rem; }
+    .page-link:hover{ background:#e9ecef; }
+    .page-item.active .page-link{ background:#0d6efd; color:#fff; border-color:#0d6efd; }
+    .page-item.disabled .page-link{ color:#6c757d; pointer-events:none; background:#fff; border-color:#dee2e6; }
+
+    .sortable{ cursor:pointer; position:relative; }
+    .sortable:hover{ background:#e2e6ea; }
+    .sortable::after{ content:"↕"; position:absolute; right:5px; color:#adb5bd; }
+    .sortable.asc::after{ content:"↑"; color:#495057; }
+    .sortable.desc::after{ content:"↓"; color:#495057; }
 </style>
 {% endblock %}
 
 {% block body %}
 <div class="dashboard-container">
+
     <div class="page-title">
         <h1><i class="fas fa-file-invoice me-2"></i>Gestion des BL en cours</h1>
-        <a href="{{ path('app_blencours_new') }}" class="create-btn">
-            <i class="fas fa-plus-circle me-1"></i> Nouveau BL
-        </a>
+
+        <div class="page-actions">
+            <a href="{{ path('app_blencours_new') }}" class="create-btn">
+                <i class="fas fa-plus-circle me-1"></i> Nouveau BL
+            </a>
+
+            {# ---- Bouton Supprimer tout (ouvre le modal) ---- #}
+            <button class="danger-ghost" data-bs-toggle="modal" data-bs-target="#confirmClearModal" title="Supprimer tous les BL">
+                <i class="fas fa-trash me-1"></i> Supprimer tout
+            </button>
+        </div>
     </div>
-    
-    {# Affichage des messages flash #}
+
+    {# Flash messages #}
     {% for message in app.flashes('success') %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i class="fas fa-check-circle me-2"></i>{{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     {% endfor %}
-    
+    {% for message in app.flashes('info') %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="fas fa-info-circle me-2"></i>{{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
     {% for message in app.flashes('error') %}
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <i class="fas fa-exclamation-circle me-2"></i>{{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     {% endfor %}
-    
+
     {# Statistiques #}
     <div class="stats-container">
         <div class="stat-card stat-card-blue">
@@ -350,7 +147,7 @@
             <div class="stat-card-value">{{ stats.pickingnok }}</div>
         </div>
     </div>
-    
+
     {# Filtres #}
     <div class="filters-card">
         <div class="filters-title">
@@ -408,28 +205,23 @@
             </div>
         </div>
     </div>
-    
-    {# Tableau des BL #}
+
+    {# Tableau #}
     <div class="card">
         <div class="card-header">
             <h4><i class="fas fa-list me-2"></i>Liste des BL en cours</h4>
         </div>
+
         <div class="table-responsive">
             <table class="table table-hover bl-table">
                 <thead>
                     <tr>
-                        <th style="width: 5%">#</th>
-                        <th class="sortable {{ sortField == 'numBl' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="numBl" style="width: 15%">
-                            Numéro BL
-                        </th>
-                        <th class="sortable {{ sortField == 'statut' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="statut" style="width: 15%">
-                            Statut
-                        </th>
-                        <th class="sortable {{ sortField == 'adddate' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="adddate" style="width: 20%">
-                            Date d'ajout
-                        </th>
-                        <th style="width: 15%">Type</th>
-                        <th style="width: 30%">Actions</th>
+                        <th style="width:5%">#</th>
+                        <th class="sortable {{ sortField == 'numBl' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="numBl" style="width:15%">Numéro BL</th>
+                        <th class="sortable {{ sortField == 'statut' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="statut" style="width:15%">Statut</th>
+                        <th class="sortable {{ sortField == 'adddate' ? (sortDirection == 'ASC' ? 'asc' : 'desc') : '' }}" data-sort="adddate" style="width:20%">Date d'ajout</th>
+                        <th style="width:15%">Type</th>
+                        <th style="width:30%">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -439,20 +231,15 @@
                             <td>{{ blencour.id }}</td>
                             <td><strong>{{ blencour.numBl }}</strong></td>
                             <td>
-                                {% set statusClass = '' %}
-                                {% if blencour.statut == 'En attente' %}
-                                    {% set statusClass = 'status-pending' %}
-                                {% elseif blencour.statut == 'En cours' %}
-                                    {% set statusClass = 'status-processing' %}
-                                {% else %}
-                                    {% set statusClass = 'status-completed' %}
-                                {% endif %}
+                                {% set statusClass =
+                                    blencour.statut == 'En attente' ? 'status-pending' :
+                                    (blencour.statut == 'En cours' ? 'status-processing' : 'status-completed')
+                                %}
                                 <span class="status-badge {{ statusClass }}">{{ blencour.statut }}</span>
                             </td>
                             <td>
                                 {% if blencour.adddate %}
-                                    <i class="far fa-calendar-alt me-1"></i> {{ blencour.adddate|date('d/m/Y') }}
-                                    <br>
+                                    <i class="far fa-calendar-alt me-1"></i> {{ blencour.adddate|date('d/m/Y') }}<br>
                                     <small class="text-muted">{{ blencour.adddate|date('H:i:s') }}</small>
                                 {% else %}
                                     <span class="text-muted">--</span>
@@ -463,7 +250,7 @@
                                     <span class="badge-ok"><i class="fas fa-check me-1"></i>OK</span>
                                 {% endif %}
                                 {% if blencour.Pickingnok %}
-                                    <span class="badge-nok"><i class="fas fa-times me-1"></i>NOK</span>
+                                    <span class="badge-nok"><i class="fas a-times me-1"></i>NOK</span>
                                 {% endif %}
                                 {% if not blencour.Pickingok and not blencour.Pickingnok %}
                                     <span class="text-muted">Standard</span>
@@ -505,41 +292,39 @@
                 </tbody>
             </table>
         </div>
-        
-        {# Pagination #}
+
         <div class="pagination-container">
             <div class="pagination-info">
                 Affichage de <strong>{{ blencours|length }}</strong> BL sur <strong>{{ totalItems }}</strong> au total
             </div>
-            
             <nav aria-label="Page navigation">
                 <ul class="pagination">
                     <li class="page-item {{ currentPage == 1 ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ path('app_blencours_index', {'page': 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v,k)=>k!='page'))) }}">
                             <i class="fas fa-angle-double-left"></i>
                         </a>
                     </li>
                     <li class="page-item {{ currentPage == 1 ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ path('app_blencours_index', {'page': currentPage - 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': currentPage-1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v,k)=>k!='page'))) }}">
                             <i class="fas fa-angle-left"></i>
                         </a>
                     </li>
-                    
-                    {% for i in max(1, currentPage - 2)..min(totalPages, currentPage + 2) %}
+
+                    {% for i in max(1, currentPage-2)..min(totalPages, currentPage+2) %}
                         <li class="page-item {{ currentPage == i ? 'active' : '' }}">
-                            <a class="page-link" href="{{ path('app_blencours_index', {'page': i, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                            <a class="page-link" href="{{ path('app_blencours_index', {'page': i, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v,k)=>k!='page'))) }}">
                                 {{ i }}
                             </a>
                         </li>
                     {% endfor %}
-                    
+
                     <li class="page-item {{ currentPage == totalPages ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ path('app_blencours_index', {'page': currentPage + 1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': currentPage+1, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v,k)=>k!='page'))) }}">
                             <i class="fas fa-angle-right"></i>
                         </a>
                     </li>
                     <li class="page-item {{ currentPage == totalPages ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ path('app_blencours_index', {'page': totalPages, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v, k) => k != 'page'))) }}">
+                        <a class="page-link" href="{{ path('app_blencours_index', {'page': totalPages, 'sort': sortField, 'direction': sortDirection}|merge(app.request.query.all|filter((v,k)=>k!='page'))) }}">
                             <i class="fas fa-angle-double-right"></i>
                         </a>
                     </li>
@@ -547,63 +332,98 @@
             </nav>
         </div>
     </div>
+
+</div>
+
+{# ===================== MODAL CONFIRMATION SUPPRESSION ===================== #}
+<div class="modal fade" id="confirmClearModal" tabindex="-1" aria-labelledby="confirmClearModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="confirmClearModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Suppression des BL</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+
+      <div class="modal-body">
+        <p class="mb-3">
+            Cette action va supprimer des enregistrements de <strong>Blencours</strong>.
+            Choisis l’une des options ci-dessous :
+        </p>
+
+        <div class="border rounded p-3 mb-3">
+            <h6 class="text-danger mb-2"><i class="fas fa-trash me-1"></i> Supprimer <u>tous</u> les BL</h6>
+            <form method="post" action="{{ path('app_blencours_clear_all') }}" onsubmit="return confirm('⚠️ Êtes-vous sûr de vouloir TOUT supprimer ? Cette action est irréversible.');">
+                <input type="hidden" name="_token" value="{{ csrf_token('clear_all_blencours') }}">
+                <button type="submit" class="btn btn-danger w-100">
+                    <i class="fas fa-bomb me-1"></i> Supprimer TOUT
+                </button>
+            </form>
+        </div>
+
+        <div class="border rounded p-3">
+            <h6 class="mb-2"><i class="fas fa-filter me-1"></i> Supprimer par statut</h6>
+            <form method="post" action="{{ path('app_blencours_clear_by_status') }}" onsubmit="return confirm('Supprimer tous les BL avec ce statut ?');">
+                <input type="hidden" name="_token" value="{{ csrf_token('clear_by_status') }}">
+                <div class="mb-2">
+                    <select class="form-select" name="status" required>
+                        <option value="" disabled selected>Choisir un statut…</option>
+                        <option value="En attente">En attente</option>
+                        <option value="En cours">En cours</option>
+                        <option value="Traité">Traité</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-outline-danger w-100">
+                    <i class="fas fa-trash-alt me-1"></i> Supprimer par statut
+                </button>
+            </form>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+      </div>
+
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block javascripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Gestion du tri des colonnes
-        const sortableHeaders = document.querySelectorAll('.sortable');
-        
-        sortableHeaders.forEach(header => {
-            header.addEventListener('click', function() {
-                const sortField = this.getAttribute('data-sort');
-                let direction = 'ASC';
-                
-                if (this.classList.contains('asc')) {
-                    direction = 'DESC';
-                } else if (this.classList.contains('desc')) {
-                    direction = 'ASC';
-                }
-                
-                window.location.href = updateUrlParameter(window.location.href, 'sort', sortField);
-                window.location.href = updateUrlParameter(window.location.href, 'direction', direction);
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    // Tri des colonnes
+    document.querySelectorAll('.sortable').forEach(header => {
+        header.addEventListener('click', function() {
+            const field = this.getAttribute('data-sort');
+            let direction = 'ASC';
+            if (this.classList.contains('asc')) direction = 'DESC';
+            else if (this.classList.contains('desc')) direction = 'ASC';
+
+            const u1 = updateUrlParameter(window.location.href, 'sort', field);
+            const u2 = updateUrlParameter(u1, 'direction', direction);
+            window.location.href = u2;
         });
-        
-        // Fonction pour mettre à jour les paramètres d'URL
-        function updateUrlParameter(url, param, value) {
-            const regex = new RegExp('([?&])' + param + '=.*?(&|$)', 'i');
-            const separator = url.indexOf('?') !== -1 ? '&' : '?';
-            
-            if (url.match(regex)) {
-                return url.replace(regex, '$1' + param + '=' + value + '$2');
-            } else {
-                return url + separator + param + '=' + value;
-            }
-        }
-        
-        // Mise à jour rapide du statut avec confirmation
-        const completeButtons = document.querySelectorAll('.complete-btn');
-        
-        completeButtons.forEach(button => {
-            button.addEventListener('click', function(event) {
-                if (!confirm('Êtes-vous sûr de vouloir marquer ce BL comme traité ?')) {
-                    event.preventDefault();
-                }
-            });
-        });
-        
-        // Mise à jour des filtres
-        const resetButton = document.querySelector('button[type="reset"]');
-        
-        if (resetButton) {
-            resetButton.addEventListener('click', function(event) {
-                event.preventDefault();
-                window.location.href = '{{ path('app_blencours_index') }}';
-            });
-        }
     });
+
+    function updateUrlParameter(url, param, value) {
+        const regex = new RegExp('([?&])' + param + '=.*?(&|$)', 'i');
+        const separator = url.indexOf('?') !== -1 ? '&' : '?';
+        if (url.match(regex)) {
+            return url.replace(regex, '$1' + param + '=' + value + '$2');
+        }
+        return url + separator + param + '=' + value;
+    }
+
+    // Reset filtres => reload index sans params
+    const resetButton = document.querySelector('button[type="reset"]');
+    if (resetButton) {
+        resetButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = '{{ path('app_blencours_index') }}';
+        });
+    }
+});
 </script>
 {% endblock %}

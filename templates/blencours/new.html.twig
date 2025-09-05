@@ -558,6 +558,37 @@
     .form-check-input[id="blencours_Pickingnok"]:checked + .form-check-label {
         color: #dc3545;
     }
+
+
+    /* --- Ajout multiple --- */
+    .bulk-card{
+        border-radius: 12px;
+        border: 1px solid #dee2e6;
+        background: #ffffffcc;
+        box-shadow: 0 8px 20px rgba(0,0,0,.06);
+        margin-top: 25px;
+    }
+    .bulk-header{
+        padding: 14px 18px;
+        border-bottom: 1px solid #e9ecef;
+        background: linear-gradient(135deg, #e3f2fd 0%, #fff 100%);
+        border-radius: 12px 12px 0 0;
+        display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+    }
+    .bulk-body{ padding: 16px 18px; }
+    .bulk-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .small-muted{ font-size:.9rem; color:#6c757d; }
+    .bl-list{
+        max-height: 360px; overflow:auto; border:1px solid #e9ecef; border-radius:8px; padding:10px; background:#fff;
+    }
+    .bl-item{
+        display:flex; justify-content:space-between; align-items:center;
+        padding:8px 10px; border-bottom:1px dashed #eee; gap:10px;
+    }
+    .bl-item:last-child{ border-bottom:none; }
+    .bl-id{ font-weight:600; color:#0d6efd; }
+    .bl-meta{ font-size:.9rem; color:#6c757d; }
+    .bulk-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:12px; }
 </style>
 {% endblock %}
 
@@ -569,40 +600,33 @@
             <i class="fas fa-arrow-left"></i> Retour à la liste
         </a>
     </div>
-    
-    {# Affichage des messages flash de succès #}
+
+    {# Flashs #}
     {% for message in app.flashes('success') %}
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle me-2"></i>{{ message }}
-        </div>
+        <div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>{{ message }}</div>
     {% endfor %}
-    
-    {# Affichage des messages flash d'erreur #}
     {% for message in app.flashes('error') %}
-        <div class="alert alert-danger">
-            <i class="fas fa-exclamation-circle me-2"></i>{{ message }}
-        </div>
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-2"></i>{{ message }}</div>
     {% endfor %}
-    
+    {% for message in app.flashes('info') %}
+        <div class="alert alert-info"><i class="fas fa-info-circle me-2"></i>{{ message }}</div>
+    {% endfor %}
+
     <div class="help-section">
         <h5><i class="fas fa-info-circle me-2"></i>Conseils pour la création d'un BL</h5>
         <ul>
-            <li>Vérifiez que le numéro de BL est unique et correspond au format attendu</li>
-            <li>Tous les champs marqués d'un astérisque (*) sont obligatoires</li>
-            <li>Le statut par défaut d'un nouveau BL est "En attente"</li>
-            <li>Les clients commençant par "CI9" sont affichés en bleu, les autres en jaune</li>
-            <li>Les BL se terminant par "_T" sont automatiquement filtrés</li>
+            <li>Vérifiez que le numéro de BL est unique</li>
+            <li>Les clients commençant par "CI9" sont bleus, les autres jaunes</li>
+            <li>Les BL se terminant par "_T" sont exclus</li>
         </ul>
     </div>
-    
-    {# Menu déroulant optimisé pour sélectionner un BL existant du jour #}
+
+    {# ===== Sélecteur custom (mono-BL) — inchangé ===== #}
     <div class="bl-selector-container">
         <div class="bl-selector-title">
             <i class="fas fa-list-ul me-2"></i>BL disponibles aujourd'hui
             <span class="bl-count-badge">{{ (todayBlList|filter(bl => bl['No_Bl']|slice(-2) != '_T'))|length }}</span>
         </div>
-        
-        {# Menu déroulant personnalisé unique (pas de duplication) #}
         <div class="custom-select-wrapper">
             <div id="custom-select" class="custom-select">
                 <div class="custom-select-trigger">
@@ -615,26 +639,21 @@
                     </div>
                     {% set processedBls = [] %}
                     {% for bl in todayBlList %}
-                        {# Filtrer les BL qui se terminent par "_T" et éviter les doublons #}
                         {% if bl['No_Bl']|slice(-2) != '_T' and bl['No_Bl'] not in processedBls %}
                             {% set processedBls = processedBls|merge([bl['No_Bl']]) %}
-                            {% set client = bl['Client'] ? bl['Client'] : 'Client non spécifié' %}
-                            {% set codeClient = bl['Code_Client'] ? bl['Code_Client'] : '' %}
-                            {% set clientClass = codeClient|slice(0, 3) == 'CI9' ? 'client-ci9' : 'client-other' %}
-                            {% set badgeClass = codeClient|slice(0, 3) == 'CI9' ? 'client-badge-ci9' : 'client-badge-other' %}
-                            {% set badgeText = codeClient|slice(0, 3) == 'CI9' ? 'CI9' : 'STD' %}
-                            {# Vérifier si le nom du client contient "machines" (insensible à la casse) #}
+                            {% set client = bl['Client'] ?: 'Client non spécifié' %}
+                            {% set codeClient = bl['Code_Client'] ?: '' %}
+                            {% set clientClass = codeClient|slice(0,3) == 'CI9' ? 'client-ci9' : 'client-other' %}
+                            {% set badgeClass  = codeClient|slice(0,3) == 'CI9' ? 'client-badge-ci9' : 'client-badge-other' %}
+                            {% set badgeText   = codeClient|slice(0,3) == 'CI9' ? 'CI9' : 'STD' %}
                             {% set hasMachines = client|lower matches '/.*machines.*/' %}
                             {% set machinesClass = hasMachines ? 'has-machines' : '' %}
-                            
-                            <div class="custom-option {{ clientClass }} {{ machinesClass }}" data-value="{{ bl['No_Bl'] }}" data-code-client="{{ codeClient }}">
-                                <span>{{ bl['No_Bl'] }} - {{ client|slice(0, 35) }}{% if client|length > 35 %}...{% endif %}</span>
+                            <div class="custom-option {{ clientClass }} {{ machinesClass }}"
+                                 data-value="{{ bl['No_Bl'] }}"
+                                 data-code-client="{{ codeClient }}">
+                                <span>{{ bl['No_Bl'] }} - {{ client|slice(0,35) }}{% if client|length > 35 %}...{% endif %}</span>
                                 <span class="client-badge {{ badgeClass }}">
-                                    {% if hasMachines %}
-                                        <i class="fas fa-cogs me-1"></i>MACHINES
-                                    {% else %}
-                                        {{ badgeText }}
-                                    {% endif %}
+                                    {% if hasMachines %}<i class="fas fa-cogs me-1"></i>MACHINES{% else %}{{ badgeText }}{% endif %}
                                 </span>
                             </div>
                         {% endif %}
@@ -642,16 +661,15 @@
                 </div>
             </div>
         </div>
-        
         <div class="mt-3 small text-muted">
             <i class="fas fa-lightbulb me-1"></i>
-            <strong>Astuce :</strong> Sélectionnez un BL existant pour pré-remplir automatiquement le formulaire. Les BL se terminant par "_T" sont exclus.
+            <strong>Astuce :</strong> Sélectionnez un BL existant pour pré-remplir automatiquement le formulaire.
         </div>
     </div>
-    
-    {# Div pour afficher les informations client #}
+
     <div id="client-info-display"></div>
-    
+
+    {# ===== Formulaire mono-BL (Symfony Form) — inchangé ===== #}
     <div class="card">
         <div class="card-header">
             <h4><i class="fas fa-file-invoice me-2"></i>Informations du nouveau BL</h4>
@@ -660,7 +678,6 @@
             {{ form_start(form, {'attr': {'id': 'bl-new-form'}}) }}
                 <div class="form-section">
                     <div class="form-section-title">Informations générales</div>
-                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -677,12 +694,9 @@
                             </div>
                         </div>
                     </div>
-                    
-                    {# Cases à cocher avec style amélioré #}
+
                     <div class="checkbox-group">
-                        <div class="checkbox-group-title">
-                            <i class="fas fa-tags me-2"></i>Statut de picking
-                        </div>
+                        <div class="checkbox-group-title"><i class="fas fa-tags me-2"></i>Statut de picking</div>
                         <div class="checkbox-container">
                             <div class="form-check pickingok-check">
                                 {{ form_widget(form.Pickingok, {'attr': {'checked': 'checked'}}) }}
@@ -697,7 +711,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="action-buttons">
                     <a href="{{ path('app_blencours_index') }}" class="btn btn-secondary">Annuler</a>
                     <div class="d-flex align-items-center">
@@ -713,401 +727,271 @@
             {{ form_end(form) }}
         </div>
     </div>
+
+    {# ===== AJOUT MULTIPLE ===== #}
+    <div class="bulk-card">
+        <div class="bulk-header">
+            <h4 class="m-0"><i class="fas fa-layer-group me-2"></i>Ajouter plusieurs BL en une fois</h4>
+            <div class="bulk-tools">
+                <span class="small-muted">Sélectionne un ou plusieurs BL ci-dessous puis “Ajouter la sélection”.</span>
+            </div>
+        </div>
+        <div class="bulk-body">
+            <form method="post" action="{{ path('app_blencours_bulk_create') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('bulk_create_blencours') }}">
+
+                <div class="row g-3 align-items-end mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Statut par défaut</label>
+                        <select name="default_status" class="form-select">
+                            <option value="En cours">En cours</option>
+                            <option value="En attente">En attente</option>
+                            <option value="Traité">Traité</option>
+                        </select>
+                        <div class="form-text">Sera remplacé si le BL source a un Statut_Cde.</div>
+                    </div>
+                    <div class="col-md-8 text-end">
+                        <button type="button" id="check-all" class="btn btn-outline-primary btn-sm me-2">
+                            <i class="fas fa-check-square me-1"></i> Tout cocher
+                        </button>
+                        <button type="button" id="uncheck-all" class="btn btn-outline-secondary btn-sm me-2">
+                            <i class="far fa-square me-1"></i> Tout décocher
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-plus-circle me-1"></i> Ajouter la sélection
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bl-list">
+                    {% set seen = [] %}
+                    {% for bl in todayBlList %}
+                        {% set no = bl['No_Bl'] %}
+                        {% if no and no|slice(-2) != '_T' and no not in seen %}
+                            {% set seen = seen|merge([no]) %}
+                            {% set client = bl['Client'] ?: 'Client non spécifié' %}
+                            {% set codeClient = bl['Code_Client'] ?: '' %}
+                            <div class="bl-item">
+                                <div>
+                                    <span class="bl-id">{{ no }}</span>
+                                    <span class="bl-meta"> — {{ client }}</span>
+                                    {% if codeClient %}
+                                        <span class="badge bg-light text-muted ms-2">{{ codeClient }}</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <input class="form-check-input bl-check" type="checkbox" name="selected_bls[]" value="{{ no }}" id="bl_{{ loop.index }}">
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if seen is empty %}
+                        <div class="text-muted">Aucun BL disponible pour l’ajout multiple.</div>
+                    {% endif %}
+                </div>
+
+                <div class="bulk-actions">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus-circle me-1"></i> Ajouter la sélection
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block javascripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Formulaire de création
-        const form = document.getElementById('bl-new-form');
-        const loadingIndicator = document.querySelector('.loading-indicator');
-        
-        if (form) {
-            form.addEventListener('submit', function() {
-                // Validation côté client
-                const requiredFields = form.querySelectorAll('[required]');
-                let isValid = true;
-                
-                requiredFields.forEach(field => {
-                    if (!field.value.trim()) {
-                        isValid = false;
-                        field.classList.add('is-invalid');
-                    } else {
-                        field.classList.remove('is-invalid');
-                    }
-                });
-                
-                if (isValid) {
-                    loadingIndicator.style.display = 'flex';
+document.addEventListener('DOMContentLoaded', function() {
+    // ====== Ton JS existant (mono-BL) — inchangé sauf erreurs éventuelles ======
+    const form = document.getElementById('bl-new-form');
+    const loadingIndicator = document.querySelector('.loading-indicator');
+    if (form) {
+        form.addEventListener('submit', function() {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('is-invalid');
                 } else {
-                    return false;
+                    field.classList.remove('is-invalid');
                 }
             });
-        }
-        
-        // Gestion du menu déroulant personnalisé optimisé
-        const customSelect = document.getElementById('custom-select');
-        const customSelectTrigger = document.querySelector('.custom-select-trigger');
-        const customOptions = document.querySelectorAll('.custom-option');
-        
-        if (customSelect && customSelectTrigger) {
-            // Ouvrir/fermer le menu déroulant
-            customSelectTrigger.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                customSelect.classList.toggle('opened');
-            });
-            
-            // Fermer le menu déroulant lors d'un clic à l'extérieur
-            document.addEventListener('click', function(e) {
-                if (!customSelect.contains(e.target)) {
-                    customSelect.classList.remove('opened');
-                }
-            });
-            
-            // Gestion des options
-            customOptions.forEach(option => {
-                option.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Retirer la classe selection de toutes les options
-                    customOptions.forEach(opt => opt.classList.remove('selection'));
-                    
-                    // Ajouter la classe selection à l'option sélectionnée
-                    this.classList.add('selection');
-                    
-                    // Mettre à jour le texte affiché
-                    const selectedText = this.querySelector('span').textContent;
-                    customSelectTrigger.querySelector('span').textContent = selectedText;
-                    
-                    // Fermer le menu
-                    customSelect.classList.remove('opened');
-                    
-                    // Récupérer les données du BL sélectionné
-                    const blNumber = this.getAttribute('data-value');
-                    const codeClient = this.getAttribute('data-code-client');
-                    
-                    // Traitement selon la sélection
-                    if (blNumber === '') {
-                        // Option "Nouveau BL vide" - réinitialiser le formulaire
-                        resetForm();
-                    } else {
-                        // BL sélectionné - charger ses données
-                        loadBlData(blNumber, codeClient);
-                    }
-                });
-            });
-        }
-        
-        // Fonction pour réinitialiser le formulaire
-        function resetForm() {
-            const numBlField = document.getElementById('blencours_numBl');
-            const statutField = document.getElementById('blencours_statut');
-            const pickingokField = document.getElementById('blencours_Pickingok');
-            const pickingnokField = document.getElementById('blencours_Pickingnok');
-            
-            // Réinitialiser tous les champs
-            if (numBlField) numBlField.value = '';
-            if (statutField) statutField.value = 'En attente';
-            // Picking OK coché par défaut, Picking NOK décoché
-            if (pickingokField) pickingokField.checked = true;
-            if (pickingnokField) pickingnokField.checked = false;
-            
-            // Cacher les informations client
-            hideClientInfo();
-            
-            // Supprimer les avertissements
-            removeWarnings();
-        }
-        
-        // Fonction pour charger les données d'un BL
-        function loadBlData(blNumber, codeClient) {
-            if (!blNumber) return;
-            
-            // Afficher l'indicateur de chargement
-            showLoading(true);
-            
-            // Remplir directement le champ numBl avec la valeur sélectionnée
-            const numBlField = document.getElementById('blencours_numBl');
-            if (numBlField) {
-                numBlField.value = blNumber;
-                // Déclencher un événement change
-                numBlField.dispatchEvent(new Event('change'));
-            }
-            
-            // Requête AJAX pour récupérer les données du BL sélectionné
-            Promise.all([
-                fetch(`/blencours/get-bl-data/${encodeURIComponent(blNumber)}`),
-                fetch(`/blencours/check-bl-exists/${encodeURIComponent(blNumber)}`)
-            ])
-            .then(async ([dataResponse, existsResponse]) => {
-                const data = await dataResponse.json();
-                const existsData = await existsResponse.json();
-                
-                if (data.success && data.data.length > 0) {
-                    const blData = data.data[0];
-                    console.log('Données récupérées:', blData);
-                    
-                    // Pré-remplir le formulaire avec les données du BL
-                    fillFormWithBlData(blData);
-                    
-                    // Afficher les informations client
-                    displayClientInfo(blData, codeClient);
-                    
-                    // Vérifier si le BL existe déjà
-                    if (existsData.exists) {
-                        showExistingBlWarning();
-                    } else {
-                        removeWarnings();
-                    }
-                } else {
-                    hideClientInfo();
-                    removeWarnings();
-                }
-                
-                showLoading(false);
-            })
-            .catch(error => {
-                console.error('Erreur lors de la récupération des données du BL:', error);
-                showLoading(false);
-                hideClientInfo();
-                showError('Erreur lors du chargement des données du BL');
-            });
-        }
-        
-        // Fonction pour remplir le formulaire avec les données du BL
-        function fillFormWithBlData(blData) {
-            // Statut
-            const statutField = document.getElementById('blencours_statut');
-            if (statutField) {
-                statutField.value = blData.Statut_Cde || 'En attente';
-            }
-            
-            // Cases à cocher avec logique intelligente
-            const pickingokField = document.getElementById('blencours_Pickingok');
-            const pickingnokField = document.getElementById('blencours_Pickingnok');
-            
-            // Logique pour Picking OK
-            if (pickingokField && blData.Client) {
-                const clientUpper = blData.Client.toUpperCase();
-                pickingokField.checked = clientUpper.includes('OK') || 
-                                       clientUpper.includes('VALID') || 
-                                       clientUpper.includes('COMPLET');
-                pickingokField.dispatchEvent(new Event('change'));
-            }
-            
-            // Logique pour Picking NOK
-            if (pickingnokField && (blData.Statut_Cde || blData.Transporteur)) {
-                const statusUpper = (blData.Statut_Cde || '').toUpperCase();
-                const transportUpper = (blData.Transporteur || '').toUpperCase();
-                pickingnokField.checked = statusUpper.includes('NOK') || 
-                                        statusUpper.includes('ERREUR') || 
-                                        transportUpper.includes('ERREUR') ||
-                                        statusUpper.includes('ANNULE');
-                pickingnokField.dispatchEvent(new Event('change'));
-            }
-        }
-        
-        // Fonction pour afficher les informations client
-        function displayClientInfo(blData, codeClient) {
-            const clientInfoDiv = document.getElementById('client-info-display');
-            if (!clientInfoDiv) return;
-            
-            // Déterminer les classes CSS selon le Code_Client
-            const isCI9 = codeClient && codeClient.startsWith('CI9');
-            const clientClass = isCI9 ? 'client-ci9' : 'client-other';
-            const clientBadgeClass = isCI9 ? 'client-badge-ci9' : 'client-badge-other';
-            const clientBadgeText = isCI9 ? 'Client CI9' : 'Client Standard';
-            
-            const clientInfoHtml = `
-                <div class="client-info-summary ${clientClass}">
-                    <h5>
-                        <i class="fas fa-info-circle me-2"></i>
-                        Informations du BL ${blData.No_Bl}
-                        <span class="client-badge ${clientBadgeClass}">${clientBadgeText}</span>
-                    </h5>
-                    <ul>
-                        <li>
-                            <strong>Client :</strong> 
-                            <span>${blData.Client || '--'}</span>
-                        </li>
-                        <li>
-                            <strong>Code Client :</strong> 
-                            <span>${blData.Code_Client || '--'}</span>
-                        </li>
-                        <li>
-                            <strong>Transporteur :</strong> 
-                            <span>${blData.Transporteur || '--'}</span>
-                        </li>
-                        <li>
-                            <strong>Statut commande :</strong> 
-                            <span>${blData.Statut_Cde || '--'}</span>
-                        </li>
-                        <li>
-                            <strong>Num. commande :</strong> 
-                            <span>${blData.No_Cmd || '--'}</span>
-                        </li>
-                        <li>
-                            <strong>Date livraison :</strong> 
-                            <span>${blData.Date_liv || '--'}</span>
-                        </li>
-                        <li>
-                            <strong>Préparateur :</strong> 
-                            <span>${blData.Preparateur || '--'}</span>
-                        </li>
-                    </ul>
-                </div>
-            `;
-            
-            clientInfoDiv.innerHTML = clientInfoHtml;
-            clientInfoDiv.style.display = 'block';
-            
-            // Animation d'apparition
-            clientInfoDiv.style.opacity = '0';
-            clientInfoDiv.style.transform = 'translateY(-20px)';
-            setTimeout(() => {
-                clientInfoDiv.style.transition = 'all 0.3s ease';
-                clientInfoDiv.style.opacity = '1';
-                clientInfoDiv.style.transform = 'translateY(0)';
-            }, 50);
-        }
-        
-        // Fonction pour cacher les informations client
-        function hideClientInfo() {
-            const clientInfoDiv = document.getElementById('client-info-display');
-            if (clientInfoDiv) {
-                clientInfoDiv.style.display = 'none';
-                clientInfoDiv.innerHTML = '';
-            }
-        }
-        
-        // Fonction pour afficher l'avertissement BL existant
-        function showExistingBlWarning() {
-            removeWarnings(); // Supprimer les anciens avertissements
-            
-            const numBlField = document.getElementById('blencours_numBl');
-            if (!numBlField) return;
-            
-            const warning = document.createElement('div');
-            warning.className = 'alert alert-warning mt-3 bl-exists-warning';
-            warning.innerHTML = `
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Attention :</strong> Ce numéro de BL existe déjà dans la base de données. 
-                Créer un nouveau BL avec ce numéro créera un doublon.
-            `;
-            
-            const numBlParent = numBlField.closest('.form-group');
-            if (numBlParent) {
-                numBlParent.appendChild(warning);
-            }
-        }
-        
-        // Fonction pour supprimer les avertissements
-        function removeWarnings() {
-            const warnings = document.querySelectorAll('.alert-warning.bl-exists-warning');
-            warnings.forEach(warning => warning.remove());
-        }
-        
-        // Fonction pour afficher/masquer l'indicateur de chargement
-        function showLoading(show) {
-            if (loadingIndicator) {
-                loadingIndicator.style.display = show ? 'flex' : 'none';
-            }
-        }
-        
-        // Fonction pour afficher les erreurs
-        function showError(message) {
-            // Créer et afficher un message d'erreur temporaire
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'alert alert-danger mt-3';
-            errorDiv.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${message}`;
-            
-            const container = document.querySelector('.new-bl-container');
-            if (container) {
-                container.insertBefore(errorDiv, container.firstChild);
-                
-                // Supprimer après 5 secondes
-                setTimeout(() => {
-                    errorDiv.remove();
-                }, 5000);
-            }
-        }
-        
-        // Améliorations UX supplémentaires
-        
-        // Animation des boutons
-        const buttons = document.querySelectorAll('.btn, .custom-select-trigger');
-        buttons.forEach(button => {
-            button.addEventListener('mousedown', function() {
-                this.style.transform = 'scale(0.98)';
-            });
-            button.addEventListener('mouseup', function() {
-                this.style.transform = 'scale(1)';
-            });
-            button.addEventListener('mouseleave', function() {
-                this.style.transform = 'scale(1)';
-            });
+            if (isValid) { loadingIndicator.style.display = 'flex'; } else { return false; }
         });
-        
-        // Mettre en évidence les champs obligatoires
-        const labels = document.querySelectorAll('label');
-        labels.forEach(label => {
-            const input = document.getElementById(label.getAttribute('for'));
-            if (input && input.hasAttribute('required')) {
-                label.closest('.form-group').classList.add('required-field');
-            }
+    }
+
+    const customSelect = document.getElementById('custom-select');
+    const customSelectTrigger = document.querySelector('.custom-select-trigger');
+    const customOptions = document.querySelectorAll('.custom-option');
+
+    if (customSelect && customSelectTrigger) {
+        customSelectTrigger.addEventListener('click', function(e) {
+            e.preventDefault(); e.stopPropagation();
+            customSelect.classList.toggle('opened');
         });
-        
-        // Fermer le menu avec la touche Échap
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && customSelect) {
+        document.addEventListener('click', function(e) {
+            if (!customSelect.contains(e.target)) {
                 customSelect.classList.remove('opened');
             }
         });
-        
-        // Améliorer l'accessibilité du menu déroulant
-        if (customSelectTrigger) {
-            customSelectTrigger.setAttribute('role', 'button');
-            customSelectTrigger.setAttribute('aria-haspopup', 'listbox');
-            customSelectTrigger.setAttribute('aria-expanded', 'false');
-            customSelectTrigger.setAttribute('tabindex', '0');
-            
-            // Navigation au clavier
-            customSelectTrigger.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    this.click();
-                }
+        customOptions.forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault(); e.stopPropagation();
+                customOptions.forEach(opt => opt.classList.remove('selection'));
+                this.classList.add('selection');
+                const selectedText = this.querySelector('span').textContent;
+                customSelectTrigger.querySelector('span').textContent = selectedText;
+                customSelect.classList.remove('opened');
+
+                const blNumber = this.getAttribute('data-value');
+                const codeClient = this.getAttribute('data-code-client');
+                if (blNumber === '') { resetForm(); } else { loadBlData(blNumber, codeClient); }
             });
-        }
-        
-        // Ajouter des attributs d'accessibilité aux options
-        customOptions.forEach((option, index) => {
-            option.setAttribute('role', 'option');
-            option.setAttribute('tabindex', '-1');
-            option.setAttribute('id', `option-${index}`);
         });
-        
-        // Observer les changements d'état du menu
-        if (customSelect) {
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.attributeName === 'class') {
-                        const isOpen = customSelect.classList.contains('opened');
-                        customSelectTrigger.setAttribute('aria-expanded', isOpen);
-                    }
-                });
-            });
-            
-            observer.observe(customSelect, {
-                attributes: true,
-                attributeFilter: ['class']
-            });
+    }
+
+    function resetForm() {
+        const numBlField = document.getElementById('blencours_numBl');
+        const statutField = document.getElementById('blencours_statut');
+        const pickingokField = document.getElementById('blencours_Pickingok');
+        const pickingnokField = document.getElementById('blencours_Pickingnok');
+        if (numBlField) numBlField.value = '';
+        if (statutField) statutField.value = 'En attente';
+        if (pickingokField) pickingokField.checked = true;
+        if (pickingnokField) pickingnokField.checked = false;
+        hideClientInfo();
+        removeWarnings();
+    }
+
+    function loadBlData(blNumber, codeClient) {
+        if (!blNumber) return;
+        showLoading(true);
+        const numBlField = document.getElementById('blencours_numBl');
+        if (numBlField) {
+            numBlField.value = blNumber;
+            numBlField.dispatchEvent(new Event('change'));
         }
-        
-        console.log('Menu déroulant BL optimisé initialisé avec succès');
-    });
+        Promise.all([
+            fetch(`/blencours/get-bl-data/${encodeURIComponent(blNumber)}`),
+            fetch(`/blencours/check-bl-exists/${encodeURIComponent(blNumber)}`)
+        ])
+        .then(async ([dataResponse, existsResponse]) => {
+            const data = await dataResponse.json();
+            const existsData = await existsResponse.json();
+            if (data.success && data.data.length > 0) {
+                const blData = data.data[0];
+                fillFormWithBlData(blData);
+                displayClientInfo(blData, codeClient);
+                if (existsData.exists) { showExistingBlWarning(); } else { removeWarnings(); }
+            } else {
+                hideClientInfo(); removeWarnings();
+            }
+            showLoading(false);
+        })
+        .catch(() => {
+            showLoading(false); hideClientInfo(); showError('Erreur lors du chargement des données du BL');
+        });
+    }
+
+    function fillFormWithBlData(blData) {
+        const statutField = document.getElementById('blencours_statut');
+        if (statutField) { statutField.value = blData.Statut_Cde || 'En attente'; }
+        const pickingokField = document.getElementById('blencours_Pickingok');
+        const pickingnokField = document.getElementById('blencours_Pickingnok');
+        if (pickingokField && blData.Client) {
+            const c = blData.Client.toUpperCase();
+            pickingokField.checked = c.includes('OK') || c.includes('VALID') || c.includes('COMPLET');
+            pickingokField.dispatchEvent(new Event('change'));
+        }
+        if (pickingnokField && (blData.Statut_Cde || blData.Transporteur)) {
+            const s = (blData.Statut_Cde || '').toUpperCase();
+            const t = (blData.Transporteur || '').toUpperCase();
+            pickingnokField.checked = s.includes('NOK') || s.includes('ERREUR') || t.includes('ERREUR') || s.includes('ANNULE');
+            pickingnokField.dispatchEvent(new Event('change'));
+        }
+    }
+
+    function displayClientInfo(blData, codeClient) {
+        const wrap = document.getElementById('client-info-display');
+        if (!wrap) return;
+        const isCI9 = codeClient && codeClient.startsWith('CI9');
+        const clientClass = isCI9 ? 'client-ci9' : 'client-other';
+        const badgeClass = isCI9 ? 'client-badge-ci9' : 'client-badge-other';
+        const badgeText  = isCI9 ? 'Client CI9' : 'Client Standard';
+
+        wrap.innerHTML = `
+            <div class="client-info-summary ${clientClass}">
+                <h5><i class="fas fa-info-circle me-2"></i>Informations du BL ${blData.No_Bl}
+                    <span class="client-badge ${badgeClass}">${badgeText}</span>
+                </h5>
+                <ul>
+                    <li><strong>Client :</strong><span>${blData.Client || '--'}</span></li>
+                    <li><strong>Code Client :</strong><span>${blData.Code_Client || '--'}</span></li>
+                    <li><strong>Transporteur :</strong><span>${blData.Transporteur || '--'}</span></li>
+                    <li><strong>Statut commande :</strong><span>${blData.Statut_Cde || '--'}</span></li>
+                    <li><strong>Num. commande :</strong><span>${blData.No_Cmd || '--'}</span></li>
+                    <li><strong>Date livraison :</strong><span>${blData.Date_liv || '--'}</span></li>
+                    <li><strong>Préparateur :</strong><span>${blData.Preparateur || '--'}</span></li>
+                </ul>
+            </div>
+        `;
+        wrap.style.display = 'block';
+        wrap.style.opacity = '0';
+        wrap.style.transform = 'translateY(-20px)';
+        setTimeout(() => {
+            wrap.style.transition = 'all .3s ease';
+            wrap.style.opacity = '1';
+            wrap.style.transform = 'translateY(0)';
+        }, 50);
+    }
+
+    function hideClientInfo() {
+        const wrap = document.getElementById('client-info-display');
+        if (wrap) { wrap.style.display = 'none'; wrap.innerHTML = ''; }
+    }
+    function showExistingBlWarning() {
+        removeWarnings();
+        const numBlField = document.getElementById('blencours_numBl');
+        if (!numBlField) return;
+        const warn = document.createElement('div');
+        warn.className = 'alert alert-warning mt-3 bl-exists-warning';
+        warn.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Attention :</strong> Ce numéro de BL existe déjà.`;
+        const parent = numBlField.closest('.form-group');
+        if (parent) parent.appendChild(warn);
+    }
+    function removeWarnings() {
+        document.querySelectorAll('.alert-warning.bl-exists-warning').forEach(n => n.remove());
+    }
+    function showLoading(show) {
+        if (loadingIndicator) loadingIndicator.style.display = show ? 'flex' : 'none';
+    }
+    function showError(msg) {
+        const div = document.createElement('div');
+        div.className = 'alert alert-danger mt-3';
+        div.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${msg}`;
+        const container = document.querySelector('.new-bl-container');
+        if (container) {
+            container.insertBefore(div, container.firstChild);
+            setTimeout(() => div.remove(), 5000);
+        }
+    }
+
+    // ====== Ajout multiple : check/uncheck all ======
+    const checkAllBtn = document.getElementById('check-all');
+    const uncheckAllBtn = document.getElementById('uncheck-all');
+    const checks = document.querySelectorAll('.bl-check');
+
+    if (checkAllBtn) {
+        checkAllBtn.addEventListener('click', () => { checks.forEach(c => c.checked = true); });
+    }
+    if (uncheckAllBtn) {
+        uncheckAllBtn.addEventListener('click', () => { checks.forEach(c => c.checked = false); });
+    }
+});
 </script>
 {% endblock %}

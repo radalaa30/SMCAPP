@@ -11,13 +11,16 @@ use Doctrine\ORM\Query\ResultSetMapping;
 #[Route('/admin')]
 class SuividupreparationdujourController extends AbstractController
 {
-    private const STATUS_OK = 'Ok';
-    private const AGENCY_PREFIX = 'CI999%';
-    private const CLIENT_PREFIX = 'C0%';
-    private const CLIENT_GSB_PREFIX = 'TH';
-    private const CLIENT_GSB_LEROY_MERLIN = 'LEROY MERLIN';
-    private const STATUS_KO = 'KO';
-    private const STATUS_NON_FLASHE = 'NON FLASHE';
+    private const STATUS_OK                  = 'Ok';
+    private const AGENCY_PREFIX              = 'CI999%';
+    private const CLIENT_PREFIX              = 'C0%';
+    private const CLIENT_GSB_PREFIX          = 'TH';
+    private const CLIENT_GSB_LEROY_MERLIN    = 'LEROY MERLIN';
+    private const STATUS_KO                  = 'KO';
+    private const STATUS_NON_FLASHE          = 'NON FLASHE';
+
+    // ✅ Nouveau : exclure ce transporteur des stats (on utilisera LIKE LIV%)
+    private const TRANSPORTEUR_EXCLUDE = 'LIV';
 
     #[Route('/suivi/stats', name: 'app_suivi_stats')]
     public function stats(SuividupreparationdujourRepository $repository): Response
@@ -40,37 +43,39 @@ class SuividupreparationdujourController extends AbstractController
         $statsClientGSB        = $this->getStatsParClientGSB($repository, $startOfDay, $endOfDay);
         $statsClientGSBLM      = $this->getStatsParClientGSBLM($repository, $startOfDay, $endOfDay);
         $statsClientGSBAutres  = $this->getStatsParClientGSBAutres($repository, $startOfDay, $endOfDay);
+
+        // ✅ Ici on prend les stats transporteurs en excluant LIV
         $statsTransporteur     = $this->getStatsParTransporteur($repository, $startOfDay, $endOfDay);
 
         return $this->render('suividupreparationdujour/stats.html.twig', [
-            'statsStatut'                     => $this->getStatsParEtat($repository, $startOfDay, $endOfDay),
-            'statsPreparateur'                => $statsPreparateur,
-            'statsGlobales'                   => $statsGlobales,
-            'statsAgence'                     => $statsAgence,
-            'statsClient'                     => $statsClient,
-            'statsClientGSB'                  => $statsClientGSB,
-            'statsClientGSBLM'                => $statsClientGSBLM,
-            'statsClientGSBAutres'            => $statsClientGSBAutres,
-            'statsTransporteur'               => $statsTransporteur,
-            'dataPreparateurs'                => $this->prepareDataPreparateurs($statsPreparateur),
-            'dataAgences'                     => $this->prepareDataAgences($statsAgence),
-            'dataTransporteurs'               => $this->prepareDataTransporteurs($statsTransporteur),
-            'lastUpdatedAt'                   => $lastUpdatedAt,
-            'totalPreparationsClient'         => $statsGlobales['total_preparations_client'] ?? 0,
-            'preparationsClientEnCours'       => $statsGlobales['preparations_client_en_cours'] ?? 0,
-            'totalPreparationsAgence'         => $statsGlobales['total_preparations_agence'] ?? 0,
-            'preparationsAgenceEnCours'       => $statsGlobales['preparations_agence_en_cours'] ?? 0,
-            'totalPreparationsClientGSB'      => $statsGlobales['total_preparations_client_gsb'] ?? 0,
-            'preparationsClientGSBEnCours'    => $statsGlobales['preparations_client_gsb_en_cours'] ?? 0,
-            'preparationsTermineesClientGSB'  => $statsGlobales['preparations_terminees_client_gsb'] ?? 0,
-            'totalPreparationsClientGSBLM'    => $statsGlobales['total_preparations_client_gsb_lm'] ?? 0,
-            'preparationsClientGSBLMEnCours'  => $statsGlobales['preparations_client_gsb_lm_en_cours'] ?? 0,
-            'preparationsTermineesClientGSBLM'=> $statsGlobales['preparations_terminees_client_gsb_lm'] ?? 0,
-            'totalPreparationsClientGSBAutres'=> $statsGlobales['total_preparations_client_gsb_autres'] ?? 0,
-            'preparationsClientGSBAutresEnCours' => $statsGlobales['preparations_client_gsb_autres_en_cours'] ?? 0,
+            'statsStatut'                         => $this->getStatsParEtat($repository, $startOfDay, $endOfDay),
+            'statsPreparateur'                    => $statsPreparateur,
+            'statsGlobales'                       => $statsGlobales,
+            'statsAgence'                         => $statsAgence,
+            'statsClient'                         => $statsClient,
+            'statsClientGSB'                      => $statsClientGSB,
+            'statsClientGSBLM'                    => $statsClientGSBLM,
+            'statsClientGSBAutres'                => $statsClientGSBAutres,
+            'statsTransporteur'                   => $statsTransporteur,
+            'dataPreparateurs'                    => $this->prepareDataPreparateurs($statsPreparateur),
+            'dataAgences'                         => $this->prepareDataAgences($statsAgence),
+            'dataTransporteurs'                   => $this->prepareDataTransporteurs($statsTransporteur),
+            'lastUpdatedAt'                       => $lastUpdatedAt,
+            'totalPreparationsClient'             => $statsGlobales['total_preparations_client'] ?? 0,
+            'preparationsClientEnCours'           => $statsGlobales['preparations_client_en_cours'] ?? 0,
+            'totalPreparationsAgence'             => $statsGlobales['total_preparations_agence'] ?? 0,
+            'preparationsAgenceEnCours'           => $statsGlobales['preparations_agence_en_cours'] ?? 0,
+            'totalPreparationsClientGSB'          => $statsGlobales['total_preparations_client_gsb'] ?? 0,
+            'preparationsClientGSBEnCours'        => $statsGlobales['preparations_client_gsb_en_cours'] ?? 0,
+            'preparationsTermineesClientGSB'      => $statsGlobales['preparations_terminees_client_gsb'] ?? 0,
+            'totalPreparationsClientGSBLM'        => $statsGlobales['total_preparations_client_gsb_lm'] ?? 0,
+            'preparationsClientGSBLMEnCours'      => $statsGlobales['preparations_client_gsb_lm_en_cours'] ?? 0,
+            'preparationsTermineesClientGSBLM'    => $statsGlobales['preparations_terminees_client_gsb_lm'] ?? 0,
+            'totalPreparationsClientGSBAutres'    => $statsGlobales['total_preparations_client_gsb_autres'] ?? 0,
+            'preparationsClientGSBAutresEnCours'  => $statsGlobales['preparations_client_gsb_autres_en_cours'] ?? 0,
             'preparationsTermineesClientGSBAutres'=> $statsGlobales['preparations_terminees_client_gsb_autres'] ?? 0,
-            'preparationsAgenceStatusKO'      => $statsGlobales['preparations_agence_status_ko'] ?? 0,
-            'preparationsNonFlasheAvecDate'   => $statsGlobales['preparations_non_flashe_avec_date'] ?? 0,
+            'preparationsAgenceStatusKO'          => $statsGlobales['preparations_agence_status_ko'] ?? 0,
+            'preparationsNonFlasheAvecDate'       => $statsGlobales['preparations_non_flashe_avec_date'] ?? 0,
         ]);
     }
 
@@ -333,16 +338,15 @@ class SuividupreparationdujourController extends AbstractController
         );
     }
 
-    /** Transporteurs SANS LIV */
+    /** ✅ Transporteurs — exclut LIV grâce à NOT LIKE :param_0 */
     private function getStatsParTransporteur(SuividupreparationdujourRepository $repository, \DateTime $startOfDay, \DateTime $endOfDay): array
     {
         return $this->executeStatsQuery(
             $repository,
             ['s.Transporteur'],
-            "s.Transporteur IS NOT NULL 
-             AND s.Transporteur != '' 
-             AND s.Transporteur != 'LIV'",
-            null,
+            // Exclure null/vide ET exclure LIV*
+            's.Transporteur IS NOT NULL AND s.Transporteur != \'\' AND s.Transporteur NOT LIKE :param_0',
+            [self::TRANSPORTEUR_EXCLUDE . '%'],
             $startOfDay,
             $endOfDay
         );

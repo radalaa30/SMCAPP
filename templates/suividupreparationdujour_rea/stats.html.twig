@@ -109,25 +109,47 @@
 {% block body %}
 <div class="stats-container">
     {# En-tête #}
-    <div class="stats-section">
-        <div class="stats-header">
-            <h2>Tableau de bord des préparations</h2>
-            <h4>
-                {% if lastUpdatedAt %}
-                <div class="last-updated update-box">
-                    Dernière mise à jour : {{ lastUpdatedAt|date('d/m/Y H:i') }}
-                </div>
-                {% endif %}
-            </h4>
-            <button class="btn btn-primary refresh-button" onclick="window.location.reload()">
-                Actualiser
-            </button>
-        </div>
+{# Header du tableau de bord #}
+<section class="stats-section">
+  <header class="stats-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center gap-3">
+      <h2 class="m-0">Tableau de bord des préparations</h2>
+
+      {% if lastUpdatedAt %}
+        <span class="last-updated update-box m-0" aria-live="polite">
+          Dernière mise à jour :
+          <time datetime="{{ lastUpdatedAt|date('c') }}">
+            {{ lastUpdatedAt|date('d/m/Y H:i') }}
+          </time>
+        </span>
+      {% endif %}
     </div>
 
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-primary refresh-button" id="refreshBtn" title="Recharger les données">
+        <i class="fas fa-sync-alt me-1" aria-hidden="true"></i>
+        Actualiser
+      </button>
+    </div>
+  </header>
+</section>
+
+
     {# Vue d'ensemble #}
-    <div class="stats-section">
+<div class="stats-section">
         <h2 class="stats-header">Vue d'ensemble</h2>
+
+        {# >>> totaux transport pour le donut #}
+        {% set totalTermineesTransport = 0 %}
+        {% for v in dataTransporteurs.terminees %}
+            {% set totalTermineesTransport = totalTermineesTransport + v %}
+        {% endfor %}
+        {% set totalEnCoursTransport = 0 %}
+        {% for v in dataTransporteurs.enCours %}
+            {% set totalEnCoursTransport = totalEnCoursTransport + v %}
+        {% endfor %}
+        {# <<< #}
+
         <div class="row g-4">
             <div class="col-md-2">
                 <div class="stats-card">
@@ -164,48 +186,29 @@
                 </div>
             </div>
 
-            <div class="col-md-2">
-                <div class="stats-card">
-                    <h4 class="mb-3" style="font-style: italic; font-size: 0.8em;"></h4>
-                    <div class="mb-3">
-                        <h5>Total Préparations</h5>
-                        <div class="stats-value">{{ totalPreparationsClientGSB }}</div>
-                    </div>
-                    <div>
-                        <h5>Reste à préparer</h5>
-                        <div class="stats-value">{{ preparationsClientGSBEnCours }}</div>
-                    </div>
-                    <div class="progress mt-3">
-                        {% set pourcentageGSB = totalPreparationsClientGSB > 0 ? (preparationsTermineesClientGSB / totalPreparationsClientGSB * 100)|round(2) : 0 %}
-                        <div class="progress-bar {% if pourcentageGSB < 50 %}bg-warning{% elseif pourcentageGSB < 80 %}bg-warning{% else %}bg-success{% endif %}"
-                             style="width: {{ pourcentageGSB }}%">
-                            {{ pourcentageGSB }}%
+           {# >>> Carte Transporteurs élargie avec donuts individuels #}
+            <div class="col-md-4">
+            <div class="stats-card">
+                <h4 class="mb-1">Transporteurs</h4>
+                <small class="text-muted">Terminées vs En cours</small>
+
+                <div class="chart-container" style="max-height: 400px; overflow-y: auto; margin-top: 10px;">
+                <div class="row">
+                    {% for stat in statsTransporteur %}
+                    <div class="col-md-6" style="margin-bottom:20px; text-align:center;">
+                        <strong style="font-size:0.9em;">{{ stat.Transporteur ?? 'Inconnu' }}</strong>
+                        <div style="height:120px; margin-top:5px;">
+                        <canvas id="donut-{{ loop.index }}"></canvas>
                         </div>
                     </div>
+                    {% else %}
+                    <p class="text-muted">Aucun transporteur</p>
+                    {% endfor %}
+                </div>
                 </div>
             </div>
-
-            <div class="col-md-2">
-                <div class="stats-card">
-                    <h4 class="mb-3" style="font-style: italic; font-size: 0.8em;">(Dont Leroy Merlin)</h4>
-                    <div class="mb-3">
-                        <h5>Total Préparations</h5>
-                        <div class="stats-value">{{ totalPreparationsClientGSBLM }}</div>
-                    </div>
-                    <div>
-                        <h5>Reste à préparer</h5>
-                        <div class="stats-value">{{ preparationsClientGSBLMEnCours }}</div>
-                    </div>
-                    <div class="progress mt-3">
-                        {% set pourcentageGSBLM = totalPreparationsClientGSBLM > 0 ? (preparationsTermineesClientGSBLM / totalPreparationsClientGSBLM * 100)|round(2) : 0 %}
-                        <div class="progress-bar {% if pourcentageGSBLM < 50 %}bg-warning{% elseif pourcentageGSBLM < 80 %}bg-warning{% else %}bg-success{% endif %}"
-                             style="width: {{ pourcentageGSBLM }}%">
-                            {{ pourcentageGSBLM }}%
-                        </div>
-                    </div>
-                </div>
             </div>
-
+            {# <<< fin remplacement #}
             <div class="col-md-2">
                 <div class="stats-card">
                     <h4 class="mb-3">Agences</h4>
@@ -375,100 +378,6 @@
             </table>
         </div>
     </div>
-
-    {# Statistiques par Client GSB (Therminport) #}
-    <div class="stats-section">
-        <h2 class="stats-header">Statistiques Clients TH</h2>
-        <div class="table-responsive">
-            <table class="stats-table">
-                <thead>
-                    <tr>
-                        <th>Client</th>
-                        <th>Code</th>
-                        <th>Commande</th>
-                        <th>Préparateurs</th>
-                        <th>Total</th>
-                        <th>Terminées</th>
-                        <th>En cours</th>
-                        <th>Avancement</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in statsClientGSB %}
-                        <tr class="{% if stat.Client starts with 'LEROY MERLIN' %}gsb-lm-row{% else %}gsb-row{% endif %}">
-                            <td>{{ stat.Client }}</td>
-                            <td>{{ stat.Code_Client }}</td>
-                            <td>{{ stat.No_Cmd }}</td>
-                            <td>
-                                {% if stat.preparateurs is defined %}
-                                    {% for preparateur in stat.preparateurs %}
-                                        <span class="preparateur-badge">{{ preparateur }}</span>
-                                    {% endfor %}
-                                {% endif %}
-                            </td>
-                            <td>{{ stat.total_preparations }}</td>
-                            <td>{{ stat.preparations_terminees }}</td>
-                            <td>{{ stat.preparations_en_cours }}</td>
-                            <td>
-                                <div class="progress">
-                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
-                                         style="width: {{ stat.pourcentage_avancement }}%">
-                                        {{ stat.pourcentage_avancement }}%
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    {# Statistiques par Client #}
-    <div class="stats-section">
-        <h2 class="stats-header">Statistiques par Client</h2>
-        <div class="table-responsive">
-            <table class="stats-table">
-                <thead>
-                    <tr>
-                        <th>Client</th>
-                        <th>Code</th>
-                        <th>Préparateurs</th>
-                        <th>Total</th>
-                        <th>Terminées</th>
-                        <th>En cours</th>
-                        <th>Avancement</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for stat in statsClient %}
-                        <tr>
-                            <td>{{ stat.Client }}</td>
-                            <td>{{ stat.Code_Client }}</td>
-                            <td>
-                                {% if stat.preparateurs is defined %}
-                                    {% for preparateur in stat.preparateurs %}
-                                        <span class="preparateur-badge">{{ preparateur }}</span>
-                                    {% endfor %}
-                                {% endif %}
-                            </td>
-                            <td>{{ stat.total_preparations }}</td>
-                            <td>{{ stat.preparations_terminees }}</td>
-                            <td>{{ stat.preparations_en_cours }}</td>
-                            <td>
-                                <div class="progress">
-                                    <div class="progress-bar {% if stat.pourcentage_avancement < 50 %}warning{% elseif stat.pourcentage_avancement < 80 %}bg-warning{% else %}bg-success{% endif %}"
-                                         style="width: {{ stat.pourcentage_avancement }}%">
-                                        {{ stat.pourcentage_avancement }}%
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
 </div>
 {% endblock %}
 
@@ -477,7 +386,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // --------- Préparateurs (garder les mêmes infos au survol)
+        // --------- Préparateurs
         const ctxPreparateurs = document.getElementById('preparateursChart');
         const statsPreparateur = {{ statsPreparateur|json_encode|raw }};
         const suspenduesData = {{ dataPreparateurs.labels|json_encode|raw }}.map(label => {
@@ -494,26 +403,13 @@
                 labels: {{ dataPreparateurs.labels|json_encode|raw }},
                 datasets: [
                     {
-                        label: 'Préparations Client Standard',
+                        label: 'Préparations Client',
                         data: {{ dataPreparateurs.termineesClient|json_encode|raw }},
                         backgroundColor: 'rgba(165, 181, 64, 0.8)',
                         borderColor: 'rgba(165, 181, 64, 0.8)',
                         borderWidth: 1
                     },
-                    {
-                        label: 'Préparations TH Leroy Merlin',
-                        data: {{ dataPreparateurs.termineesClientGSBLM|json_encode|raw }},
-                        backgroundColor: 'rgba(255, 152, 0, 0.8)',
-                        borderColor: 'rgba(255, 152, 0, 0.8)',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Préparations TH Autres',
-                        data: {{ dataPreparateurs.termineesClientGSBAutres|json_encode|raw }},
-                        backgroundColor: 'rgba(255, 87, 34, 0.8)',
-                        borderColor: 'rgba(255, 87, 34, 0.8)',
-                        borderWidth: 1
-                    },
+                   
                     {
                         label: 'Préparations Agence',
                         data: {{ dataPreparateurs.termineesAgence|json_encode|raw }},
@@ -550,8 +446,8 @@
                                 return [
                                     `Taux d'avancement: ${pourcentages[index] || 0}%`,
                                     `Total Client Standard: ${totalClientStandard}`,
-                                    `Total TH Leroy Merlin: ${totalClientGSBLM}`,
-                                    `Total TH Autres: ${totalClientGSBAutres}`,
+                                    
+                                   
                                     `Total Agence: ${totalAgence}`,
                                     `Lignes Suspendues: ${suspendues}`,
                                     `Total Global: ${totalClientStandard + totalClientGSBLM + totalClientGSBAutres + totalAgence + suspendues}`
@@ -575,7 +471,7 @@
             }
         });
 
-        // --------- Agences (mêmes infos au survol : % + total)
+        // --------- Agences
         const ctxAgences = document.getElementById('agencesChart');
         new Chart(ctxAgences, {
             type: 'bar',
@@ -627,7 +523,7 @@
             }
         });
 
-        // --------- Transporteurs (mêmes infos au survol : % + total)
+        // --------- Transporteurs (bar)
         const ctxTransporteurs = document.getElementById('transporteursChart');
         new Chart(ctxTransporteurs, {
             type: 'bar',
@@ -678,6 +574,97 @@
                 }
             }
         });
+        
+        // --------- Mini donuts par transporteur (dans la carte latérale)
+const statsTransporteurs = {{ statsTransporteur|json_encode|raw }};
+
+statsTransporteurs.forEach((stat, index) => {
+  const canvas = document.getElementById(`donut-${index+1}`);
+  if (!canvas) return;
+
+  const terminees = stat.preparations_terminees || 0;
+  const enCours = stat.preparations_en_cours || 0;
+  const total = terminees + enCours;
+
+  new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: ['Terminées', 'En cours'],
+      datasets: [{
+        data: [terminees, enCours],
+        backgroundColor: [
+          'rgba(76, 175, 80, 0.85)',   // vert
+          'rgba(255, 193, 7, 0.85)'    // jaune
+        ],
+        borderColor: [
+          'rgba(76, 175, 80, 1)',
+          'rgba(255, 193, 7, 1)'
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '70%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const val = ctx.raw || 0;
+              const pct = total ? ((val / total) * 100).toFixed(1) : 0;
+              return `${ctx.label}: ${val} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+});
+        // --------- Donut Transport (terminées vs en cours) — remplace LM card
+        const donutEl = document.getElementById('transportDonut');
+        if (donutEl) {
+          const totalTermineesTransport = {{ totalTermineesTransport }};
+          const totalEnCoursTransport = {{ totalEnCoursTransport }};
+          const totalTransport = totalTermineesTransport + totalEnCoursTransport;
+
+          new Chart(donutEl, {
+            type: 'doughnut',
+            data: {
+              labels: ['Terminées', 'En cours'],
+              datasets: [{
+                data: [totalTermineesTransport, totalEnCoursTransport],
+                backgroundColor: [
+                  'rgba(76, 175, 80, 0.85)',   // vert
+                  'rgba(255, 193, 7, 0.85)'    // jaune
+                ],
+                borderColor: [
+                  'rgba(76, 175, 80, 1)',
+                  'rgba(255, 193, 7, 1)'
+                ],
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              cutout: '70%',
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => {
+                      const val = ctx.raw || 0;
+                      const pct = totalTransport ? ((val / totalTransport) * 100).toFixed(1) : 0;
+                      return `${ctx.label}: ${val} (${pct}%)`;
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
       });
     </script>
 {% endblock %}
