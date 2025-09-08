@@ -12,19 +12,17 @@ security:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
             security: false
+
         main:
             lazy: true
             provider: app_user_provider
             custom_authenticator: App\Security\AppAuthenticator
             logout:
                 path: app_logout
-            remember_me:
-                secret: '%kernel.secret%'
-                lifetime: 604800
-                path: /
-                always_remember_me: true
+            # IMPORTANT: pas de remember_me ici pour vraiment forcer la reconnexion
+            access_denied_handler: App\Security\AccessDeniedHandler
 
-    # Définition de la hiérarchie des rôles
+    # Hiérarchie inchangée
     role_hierarchy:
         ROLE_ADMIN: ['ROLE_CONSULTATION', 'ROLE_CARISTE', 'ROLE_USER']
         ROLE_CARISTE: ['ROLE_USER']
@@ -32,6 +30,7 @@ security:
 
     access_control:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/account/sessions, roles: ROLE_USER }   # page de gestion des sessions
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/consultation, roles: ROLE_CONSULTATION }
         - { path: ^/cariste, roles: ROLE_CARISTE }

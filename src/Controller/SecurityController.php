@@ -83,4 +83,9 @@ class SecurityController extends AbstractController
 
         return $this->redirectToRoute('app_login');
     }
+    #[Route('/forbidden', name: 'app_forbidden')]
+    public function forbidden(): Response
+    {
+        return $this->render('security/forbidden.html.twig');
+    }
 }

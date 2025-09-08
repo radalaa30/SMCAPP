@@ -22,7 +22,7 @@ public function index(
     EntityManagerInterface $em,
     DemandeReapproRepository $repositoryReappro
 ): Response {
-    $this->denyAccessUnlessGranted('ROLE_USER');
+    $this->denyAccessUnlessGranted('ROLE_CARISTE');
 
     $user = $this->getUser();
     if (!$user) {

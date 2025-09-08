@@ -1,0 +1,44 @@
+{% extends 'base2.html.twig' %}
+
+{% block title %}Mes sessions{% endblock %}
+
+{% block body %}
+  <h1>Mes sessions actives</h1>
+  <p>Pour des raisons de sécurité, chaque session expire automatiquement au bout de 12h.</p>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Créée le</th>
+        <th>Dernier usage</th>
+        <th>Expire le</th>
+        <th>IP</th>
+        <th>User-Agent</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sessions %}
+        <tr {% if s.sessionId == current_sid %}class="table-success"{% endif %}>
+          <td>{{ s.createdAt|date('Y-m-d H:i') }}</td>
+          <td>{{ s.lastUsedAt ? s.lastUsedAt|date('Y-m-d H:i') : '—' }}</td>
+          <td>{{ s.expiresAt|date('Y-m-d H:i') }}</td>
+          <td>{{ s.ip ?: '—' }}</td>
+          <td style="max-width: 320px; overflow: hidden; text-overflow: ellipsis;">{{ s.userAgent ?: '—' }}</td>
+          <td class="text-end">
+            {% if s.sessionId == current_sid %}
+              <span class="badge bg-primary">Session actuelle</span>
+            {% else %}
+              <form method="post" action="{{ path('account_sessions_revoke', {id: s.id}) }}" onsubmit="return confirm('Déconnecter cette session ?');">
+                <input type="hidden" name="_token" value="{{ csrf_token('revoke_session_' ~ s.id) }}" />
+                <button class="btn btn-sm btn-outline-danger">Révoquer</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6">Aucune session active.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

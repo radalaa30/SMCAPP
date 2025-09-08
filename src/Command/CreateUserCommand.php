@@ -4,13 +4,14 @@ namespace App\Command;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Exception\InvalidArgumentException;
+use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Console\Attribute\AsCommand;
 
 #[AsCommand(
     name: 'app:create-user',
@@ -19,8 +20,8 @@ use Symfony\Component\Console\Attribute\AsCommand;
 class CreateUserCommand extends Command
 {
     public function __construct(
-        private EntityManagerInterface $entityManager,
-        private UserPasswordHasherInterface $passwordHasher
+        private readonly EntityManagerInterface $entityManager,
+        private readonly UserPasswordHasherInterface $passwordHasher
     ) {
         parent::__construct();
     }
@@ -30,55 +31,105 @@ class CreateUserCommand extends Command
         $this
             ->addArgument('username', InputArgument::REQUIRED, 'Nom d\'utilisateur')
             ->addArgument('email', InputArgument::REQUIRED, 'Adresse email')
-            ->addArgument('password', InputArgument::REQUIRED, 'Mot de passe')
-            ->addArgument('role', InputArgument::REQUIRED, 'Rôle (admin, consultation, ou cariste)');
+            ->addArgument('password', InputArgument::REQUIRED, 'Mot de passe (en clair, sera hashé)')
+            ->addArgument('role', InputArgument::REQUIRED, 'Rôle (admin, consultation, cariste, prep)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-        
-        // Récupération des arguments
-        $username = $input->getArgument('username');
-        $email = $input->getArgument('email');
-        $password = $input->getArgument('password');
-        $role = strtoupper($input->getArgument('role'));
+        $io       = new SymfonyStyle($input, $output);
+        $username = (string) $input->getArgument('username');
+        $email    = (string) $input->getArgument('email');
+        $password = (string) $input->getArgument('password');
+        $roleArg  = strtoupper((string) $input->getArgument('role'));
 
-        // Validation du rôle
-        $roleMap = [
-            'ADMIN' => 'ROLE_ADMIN',
-            'CONSULTATION' => 'ROLE_CONSULTATION',
-            'CARISTE' => 'ROLE_CARISTE'
-        ];
+        // Validation basique
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $io->error('Email invalide.');
+            return Command::FAILURE;
+        }
+        if (strlen($username) < 2) {
+            $io->error('Le nom d’utilisateur doit contenir au moins 2 caractères.');
+            return Command::FAILURE;
+        }
+        if (strlen($password) < 4) {
+            $io->warning('Mot de passe très court.'); // on laisse passer mais on avertit
+        }
 
-        if (!isset($roleMap[$role])) {
-            $io->error('Rôle invalide. Utilisez : admin, consultation, ou cariste');
+        // Normalisation & mapping du rôle
+        $role = $this->normalizeRole($roleArg);
+        if ($role === null) {
+            $io->error('Rôle invalide. Utilisez : admin, consultation, cariste, prep');
+            return Command::FAILURE;
+        }
+
+        // Unicité username / email
+        $repo = $this->entityManager->getRepository(User::class);
+        if ($repo->findOneBy(['username' => $username])) {
+            $io->error(sprintf('Le nom d’utilisateur "%s" existe déjà.', $username));
+            return Command::FAILURE;
+        }
+        if ($repo->findOneBy(['email' => $email])) {
+            $io->error(sprintf('L’email "%s" est déjà utilisé.', $email));
             return Command::FAILURE;
         }
 
         try {
-            // Création de l'utilisateur
             $user = new User();
             $user->setUsername($username);
             $user->setEmail($email);
-            
-            // Hashage du mot de passe
-            $hashedPassword = $this->passwordHasher->hashPassword($user, $password);
-            $user->setPassword($hashedPassword);
-            
-            // Attribution du rôle
-            $user->setRoles([$roleMap[$role]]);
 
-            // Sauvegarde en base de données
+            // Hashage du mot de passe
+            $hashed = $this->passwordHasher->hashPassword($user, $password);
+            $user->setPassword($hashed);
+
+            // Attribution du rôle (ROLE_USER sera ajouté automatiquement par getRoles())
+            $user->setRoles([$role]);
+
             $this->entityManager->persist($user);
             $this->entityManager->flush();
 
-            $io->success(sprintf('Utilisateur "%s" créé avec succès avec le rôle "%s"', $username, $roleMap[$role]));
+            $io->success('Utilisateur créé avec succès ✅');
+            $io->listing([
+                'ID: ' . $user->getId(),
+                'Username: ' . $user->getUsername(),
+                'Email: ' . $user->getEmail(),
+                'Rôles: ' . implode(', ', $user->getRoles()),
+            ]);
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
-            $io->error('Une erreur est survenue lors de la création de l\'utilisateur : ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            $io->error('Erreur lors de la création de l’utilisateur : ' . $e->getMessage());
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Convertit des entrées libres vers un rôle Symfony valide.
+     * Accepte des synonymes : admin|ROLE_ADMIN, consult|consultation|visu, cariste, prep|preparateur
+     */
+    private function normalizeRole(string $input): ?string
+    {
+        $in = strtoupper(trim($input));
+
+        // Synonymes -> rôle canonique
+        $map = [
+            'ADMIN'                 => 'ROLE_ADMIN',
+            'ROLE_ADMIN'            => 'ROLE_ADMIN',
+
+            'CONSULTATION'          => 'ROLE_CONSULTATION',
+            'CONSULT'               => 'ROLE_CONSULTATION',
+            'VISU'                  => 'ROLE_CONSULTATION',
+            'ROLE_CONSULTATION'     => 'ROLE_CONSULTATION',
+
+            'CARISTE'               => 'ROLE_CARISTE',
+            'ROLE_CARISTE'          => 'ROLE_CARISTE',
+
+            'PREP'                  => 'ROLE_PREP',
+            'PREPARATEUR'           => 'ROLE_PREP',
+            'ROLE_PREP'             => 'ROLE_PREP',
+        ];
+
+        return $map[$in] ?? null;
     }
 }
