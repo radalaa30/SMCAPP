@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\Query\ResultSetMapping;
 
+#[IsGranted('ROLE_ADMIN')]
 #[Route('/admin')]
 class SuividupreparationdujourController extends AbstractController
 {

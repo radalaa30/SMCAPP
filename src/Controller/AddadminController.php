@@ -19,6 +19,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 //use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Core\Security;
 //controller pour traiter l'anomalie des vieux PDA
+#[IsGranted('ROLE_ADMIN')]
 class AddadminController extends AbstractController
 {
 

@@ -15,6 +15,7 @@ use Symfony\Component\Form\Extension\Core\Type\DateType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 
+#[IsGranted('ROLE_ADMIN')]
 class HomeController extends AbstractController
 {
     #[Route('/demandes', name: 'demande.liste')]

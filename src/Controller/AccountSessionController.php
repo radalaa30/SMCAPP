@@ -10,12 +10,12 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[IsGranted('ROLE_USER')]
+#[IsGranted('ROLE_ADMIN')]
 class AccountSessionController extends AbstractController
 {
     public function __construct(private readonly UserSessionRepository $sessions) {}
 
-    #[Route('/account/sessions', name: 'account_sessions', methods: ['GET'])]
+    #[Route('admin/account/sessions', name: 'account_sessions', methods: ['GET'])]
     public function index(Request $request): Response
     {
         /** @var \App\Entity\User $user */

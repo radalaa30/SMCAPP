@@ -8,6 +8,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
+#[IsGranted('ROLE_ADMIN')]
 class ImportlistesproduitsController extends AbstractController
 {
     #[Route('/importproduits', name: 'app_import_produits')]

@@ -194,7 +194,7 @@ public function index(
         DemandeReappro $listeDemande,
         EntityManagerInterface $em
     ): Response {
-        $this->denyAccessUnlessGranted('ROLE_USER');
+        $this->denyAccessUnlessGranted('ROLE_CARISTE');
        
         $user = $this->getUser();
         if (!$user) {
@@ -246,7 +246,7 @@ public function index(
         EntityManagerInterface $em,
         DemandeReapproRepository $repositoryReappro
     ): Response {
-        $this->denyAccessUnlessGranted('ROLE_USER');
+        $this->denyAccessUnlessGranted('ROLE_CARISTE');
         
         $user = $this->getUser();
         if (!$user) {
@@ -271,18 +271,8 @@ public function index(
             
             // Vérifier si une demande existe déjà pour cette adresse
             $existingDemande = $repositoryReappro->findExistingDemandeByAdresse($adresseConvertie);
-            
-
-          // dd($existingDemande);
-            
-       
-
-
-      
-           
-            
+                  
             if ($existingDemande) {
-
                    $nameprep =$existingDemande->getUsernamePrep();
         $idreapp = $existingDemande->getId();
             // Récupérer l'objet par son ID (65 dans votre exemple)
@@ -340,6 +330,7 @@ public function index(
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher
     ): Response {
+         $this->denyAccessUnlessGranted('ADMIN');
         $user = new User();
         $user->setEmail('emmanuelc@doe.fr')
             ->setUsername('emmanuelc')
