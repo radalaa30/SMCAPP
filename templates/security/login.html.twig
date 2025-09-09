@@ -1,185 +1,56 @@
-{# templates/security/login.html.twig #}
 {% extends 'base.html.twig' %}
 {% block title %}Log in!{% endblock %}
 
 {% block body %}
-<style>
-/* ===== Login compact 5.5w x 10h (CSS inline) ===== */
-:root{
-  --space: clamp(10px, 2.2vh, 20px);
-  --radius: 14px;
-  --card-w: min(92vw, 420px);
-  --input-h: 48px;
-  --font-base: clamp(14px, 1.9vh, 18px);
-}
-html, body{
-  height: 100%;
-  margin: 0;
-  -webkit-text-size-adjust: 100%;
-}
-body{
-  font-size: var(--font-base);
-  line-height: 1.35;
-  background:
-    radial-gradient(1200px 600px at 10% -10%, #eef7ff 20%, transparent 60%),
-    radial-gradient(1200px 600px at 110% 110%, #f5f0ff 20%, transparent 60%),
-    linear-gradient(180deg, #f8fafc, #eef2f7);
-  color: #0f172a;
-}
-.auth-shell{
-  min-height: 100svh;
-  padding: calc(var(--space) + env(safe-area-inset-top))
-           var(--space)
-           calc(var(--space) + env(safe-area-inset-bottom));
-  display: grid;
-  place-items: center;
-}
-.auth-card{
-  width: var(--card-w);
-  background: #fff;
-  border-radius: var(--radius);
-  box-shadow:
-    0 10px 25px rgba(2, 6, 23, 0.08),
-    0 2px 6px rgba(2, 6, 23, 0.06);
-  padding: calc(var(--space) * 1.4);
-  border: 1px solid #e5e7eb;
-}
-.auth-title{
-  margin: 0 0 calc(var(--space) * 0.7);
-  font-weight: 700;
-  font-size: clamp(18px, 2.4vh, 22px);
-}
-.alert{
-  margin-bottom: var(--space);
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 0.95em;
-}
-.alert-danger{
-  background: #fee2e2;
-  color: #7f1d1d;
-  border: 1px solid #fecaca;
-}
-.form-group{ margin-bottom: calc(var(--space) * 0.9); }
-label{
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: #1f2937;
-}
-.form-control{
-  display: block;
-  width: 100%;
-  height: var(--input-h);
-  padding: 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  background: #fff;
-  color: #111827;
-  outline: none;
-  transition: box-shadow .15s, border-color .15s;
-  font: inherit;
-}
-.form-control:focus{
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .18);
-}
-.btn{
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: var(--input-h);
-  border-radius: 12px;
-  border: 0;
-  background: #2563eb;
-  color: #fff;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .04s ease, filter .15s ease;
-  text-decoration: none;
-}
-.btn:active{ transform: translateY(1px); }
-.btn:hover{ filter: brightness(1.05); }
-.small-note{
-  margin-bottom: var(--space);
-  font-size: .92em;
-  color: #475569;
-}
-.small-note a{ color: #2563eb; text-decoration: none; }
-.small-note a:hover{ text-decoration: underline; }
-.offscreen{
-  position: absolute;
-  left: -9999px;
-  width: 1px; height: 1px;
-  opacity: 0;
-}
-@media (max-width: 340px){
-  :root{
-    --space: 10px;
-    --card-w: 94vw;
-    --input-h: 46px;
-    --font-base: 14px;
-  }
-}
-</style>
+<form method="post">
+  {# 1) Affiche l’erreur d’authentification, si présente #}
+  {% if error %}
+    <div class="alert alert-danger">
+      {{ error.messageKey|trans(error.messageData, 'security') }}
+    </div>
+  {% endif %}
 
-<div class="auth-shell">
-  <div class="auth-card">
-    <form method="post" autocomplete="off" autocapitalize="none" spellcheck="false" novalidate>
-      {# Leurres anti-autofill AVANT les vrais champs #}
-      <input class="offscreen" type="text"     name="username" autocomplete="username">
-      <input class="offscreen" type="password" name="password" autocomplete="current-password">
+  {# 2) Si déjà connecté, affiche l’utilisateur + lien de déconnexion #}
+  {% if app.user %}
+    <div class="mb-3">
+      You are logged in as {{ app.user.userIdentifier }},
+      <a href="{{ path('app_logout') }}">Se déconnecter</a>
+    </div>
+  {% endif %}
 
-      {% if error %}
-        <div class="alert alert-danger">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
-      {% endif %}
+  <h1 class="h3 mb-3 font-weight-normal">Veuillez vous connecter</h1>
 
-      {% if app.user %}
-        <div class="small-note">
-          Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong>.
-          <a href="{{ path('app_logout') }}">Se déconnecter</a>
-        </div>
-      {% endif %}
+  {# 3) Champ identifiant #}
+  <label for="inputUsername">Username</label>
+  <input
+    type="text"
+    value="{{ last_username }}"
+    name="username"
+    id="inputUsername"
+    class="form-control"
+    autocomplete="username"
+    required
+    autofocus
+  >
 
-      <h1 class="auth-title">Veuillez vous connecter</h1>
+  {# 4) Champ mot de passe #}
+  <label for="inputPassword">Password</label>
+  <input
+    type="password"
+    name="password"
+    id="inputPassword"
+    class="form-control"
+    autocomplete="current-password"
+    required
+  >
 
-      <div class="form-group">
-        <label for="loginUsername">Username</label>
-        <input
-          type="text"
-          name="login_username"
-          id="loginUsername"
-          class="form-control"
-          required
-          inputmode="text"
-          autocomplete="off"
-          autocapitalize="none"
-          spellcheck="false"
-          value="{{ last_username }}"
-        >
-      </div>
+  {# 5) Protection CSRF #}
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
 
-      <div class="form-group">
-        <label for="loginPassword">Password</label>
-        <input
-          type="password"
-          name="login_password"
-          id="loginPassword"
-          class="form-control"
-          required
-          autocomplete="new-password"
-          autocapitalize="none"
-          spellcheck="false"
-          readonly
-          onfocus="this.removeAttribute('readonly');"
-        >
-      </div>
-
-      <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
-
-      <button class="btn" type="submit">Se connecter</button>
-    </form>
-  </div>
-</div>
+  {# 6) “Bouton” de soumission (lien + JS) #}
+  <a href="#" class="btn btn-lg btn-primary"
+     onclick="this.closest('form').submit(); return false;">
+    Se connecter
+  </a>
+</form>
 {% endblock %}

@@ -14,7 +14,6 @@ use Doctrine\Persistence\ManagerRegistry;
 
 use Exception;
 
-#[IsGranted('ROLE_ADMIN')]
 class ImportController extends AbstractController  
 {
   // src/Controller/ImportController.php

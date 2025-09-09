@@ -13,7 +13,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\PasswordC
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Http\Util\TargetPathTrait;
-use Symfony\Component\Security\Http\SecurityRequestAttributes; // <-- IMPORTANT
+use Symfony\Component\Security\Http\SecurityRequestAttributes; // pour LAST_USERNAME (Symfony 6/7)
 
 class AppAuthenticator extends AbstractLoginFormAuthenticator
 {
@@ -23,12 +23,12 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
 
     public function authenticate(Request $request): Passport
     {
-        // On lit les champs renommés (voir le Twig ci-dessous)
-        $username = (string) $request->request->get('login_username', '');
-        $password = (string) $request->request->get('login_password', '');
+        // Aligne avec ton formulaire: name="username" et name="password"
+        $username = (string) $request->request->get('username', '');
+        $password = (string) $request->request->get('password', '');
         $csrf     = (string) $request->request->get('_csrf_token', '');
 
-        // Remplace Security::LAST_USERNAME par :
+        // Pour {{ last_username }} dans le template
         $request->getSession()->set(SecurityRequestAttributes::LAST_USERNAME, $username);
 
         return new Passport(
@@ -43,12 +43,13 @@ class AppAuthenticator extends AbstractLoginFormAuthenticator
         if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
             return new RedirectResponse($targetPath);
         }
-        // Destination par défaut après connexion
+        // Destination par défaut après connexion — ajuste si besoin
         return new RedirectResponse('/');
     }
 
     protected function getLoginUrl(Request $request): string
     {
+        // Doit correspondre au nom de ta route de page de login
         return $this->urlGenerator->generate('app_login');
     }
 }

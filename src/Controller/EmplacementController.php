@@ -12,8 +12,6 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[IsGranted('ROLE_CONSULTATION')]
-
 class EmplacementController extends AbstractController
 {
     #[Route('/emplacements', name: 'app_emplacements')]
@@ -22,11 +20,9 @@ class EmplacementController extends AbstractController
         InventairecompletRepository $repository,
         ProblemeRepository $problemeRepository
     ): Response {
-        $this->denyAccessUnlessGranted('ADMIN');
         // Normalisation des paramètres
         $cellule = strtoupper((string) $request->query->get('cellule', 'C2'));
         $allee   = strtoupper((string) $request->query->get('allee', 'A'));
-
 
         // Source de vérité : cellules et allées disponibles
         $cellules = [

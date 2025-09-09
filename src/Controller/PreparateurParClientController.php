@@ -10,7 +10,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\ORM\Query\ResultSetMapping;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
-#[IsGranted('ROLE_ADMIN')]
+
 class PreparateurParClientController extends AbstractController
 {
    
