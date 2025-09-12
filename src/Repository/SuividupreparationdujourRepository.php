@@ -8,9 +8,6 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\ORM\QueryBuilder;
 use Psr\Log\LoggerInterface;
 
-/**
- * @extends ServiceEntityRepository<Suividupreparationdujour>
- */
 class SuividupreparationdujourRepository extends ServiceEntityRepository
 {
     private ?LoggerInterface $logger;
@@ -21,26 +18,12 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         $this->logger = $logger;
     }
 
-    /**
-     * Petit utilitaire réutilisable pour exclure le transporteur LIV.
-     * - Exclut exactement "LIV" (insensible à la casse).
-     *   Si tu veux exclure tout ce qui commence par "LIV", utilise la variante "NOT LIKE 'LIV%'" commentée ci-dessous.
-     */
     private function excludeLIV(QueryBuilder $qb, string $alias = 's'): void
     {
-        // Exclusion stricte de LIV
         $qb->andWhere(sprintf('(%s.Transporteur IS NULL OR UPPER(%s.Transporteur) <> :liv)', $alias, $alias))
            ->setParameter('liv', 'LIV');
-
-        // Variante si besoin : exclure tout ce qui commence par "LIV"
-        // $qb->andWhere(sprintf('(%s.Transporteur IS NULL OR UPPER(%s.Transporteur) NOT LIKE :liv)', $alias, $alias))
-        //    ->setParameter('liv', 'LIV%');
     }
 
-    /**
-     * Trouve les suivis pour un numéro de BL spécifique avec des adresses se terminant par -01, -02, -03 ou -04,
-     * ne contenant pas "ETAG" et dont Flasher est vide
-     */
     public function findByNoBLWithSpecificAddresses(string $numBl)
     {
         try {
@@ -65,9 +48,6 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
                ->setParameter('suffix03', '%-03')
                ->setParameter('suffix04', '%-04');
 
-            // Si tu veux aussi exclure LIV ici, décommente la ligne suivante :
-            // $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
             $this->logger?->error('Erreur findByNoBLWithSpecificAddresses', [
@@ -78,30 +58,24 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Trouve les suivis avec des adresses spécifiques (terminant par -01, -02, -03, -04)
-     * et excluant les adresses commençant par 'C2S:G'
-     */
     public function findBySpecificAddressPattern()
     {
         try {
-            $qb = $this->createQueryBuilder('s')
-                ->where($qb->expr()->orX(
+            $qb = $this->createQueryBuilder('s');
+            $qb->where($qb->expr()->orX(
                     $qb->expr()->like('s.Adresse', ':pattern1'),
                     $qb->expr()->like('s.Adresse', ':pattern2'),
                     $qb->expr()->like('s.Adresse', ':pattern3'),
                     $qb->expr()->like('s.Adresse', ':pattern4')
                 ))
-                ->andWhere('CONCAT(s.Zone, \':\', s.Adresse) NOT LIKE :exclude')
-                ->setParameter('pattern1', '%-01')
-                ->setParameter('pattern2', '%-02')
-                ->setParameter('pattern3', '%-03')
-                ->setParameter('pattern4', '%-04')
-                ->setParameter('exclude', 'C2S:G%');
+               ->andWhere('CONCAT(s.Zone, \':\', s.Adresse) NOT LIKE :exclude')
+               ->setParameter('pattern1', '%-01')
+               ->setParameter('pattern2', '%-02')
+               ->setParameter('pattern3', '%-03')
+               ->setParameter('pattern4', '%-04')
+               ->setParameter('exclude', 'C2S:G%');
 
-            // Exclure LIV ici car c’est typiquement une recherche “globale”
             $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
             $this->logger?->error('Erreur findBySpecificAddressPattern', [
@@ -111,18 +85,12 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Trouve les suivis par code produit
-     */
     public function findByCodeProduit(string $codeProduit)
     {
         try {
             $qb = $this->createQueryBuilder('s')
                 ->where('s.CodeProduit = :codeProduit')
                 ->setParameter('codeProduit', $codeProduit);
-
-            // Si tu veux exclure LIV aussi dans cette vue, décommente :
-            // $this->excludeLIV($qb, 's');
 
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
@@ -134,9 +102,6 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Trouve les suivis en attente (Statut_Cde = "En attente")
-     */
     public function findPending()
     {
         try {
@@ -145,21 +110,14 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
                 ->setParameter('statut', 'En attente')
                 ->orderBy('s.No_Bl', 'ASC');
 
-            // Exclure LIV si nécessaire pour tes écrans
             $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
-            $this->logger?->error('Erreur findPending', [
-                'error' => $e->getMessage()
-            ]);
+            $this->logger?->error('Erreur findPending', ['error' => $e->getMessage()]);
             return [];
         }
     }
 
-    /**
-     * Trouve les suivis par date de livraison (Date_liv)
-     */
     public function findByDate(\DateTimeInterface $date)
     {
         try {
@@ -169,9 +127,7 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
                 ->setParameter('date', $dateString)
                 ->orderBy('s.No_Bl', 'ASC');
 
-            // Exclure LIV si nécessaire
             $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
             $this->logger?->error('Erreur findByDate', [
@@ -182,9 +138,6 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Trouve les suivis créés entre deux dates (champ "created")
-     */
     public function findByCreatedDateRange(\DateTimeInterface $startDate, \DateTimeInterface $endDate)
     {
         try {
@@ -194,9 +147,7 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
                 ->setParameter('endDate', $endDate)
                 ->orderBy('s.created', 'DESC');
 
-            // Exclure LIV si nécessaire
             $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
             $this->logger?->error('Erreur findByCreatedDateRange', [
@@ -208,9 +159,6 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Trouve les suivis validés (valider non nul)
-     */
     public function findValidated()
     {
         try {
@@ -218,21 +166,13 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
                 ->where('s.valider IS NOT NULL')
                 ->orderBy('s.valider', 'DESC');
 
-            // Exclure LIV si nécessaire
-            // $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
-            $this->logger?->error('Erreur findValidated', [
-                'error' => $e->getMessage()
-            ]);
+            $this->logger?->error('Erreur findValidated', ['error' => $e->getMessage()]);
             return [];
         }
     }
 
-    /**
-     * Trouve les suivis non validés (valider nul)
-     */
     public function findNotValidated()
     {
         try {
@@ -240,22 +180,13 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
                 ->where('s.valider IS NULL')
                 ->orderBy('s.created', 'DESC');
 
-            // Exclure LIV si nécessaire
-            // $this->excludeLIV($qb, 's');
-
             return $qb->getQuery()->getResult();
         } catch (\Exception $e) {
-            $this->logger?->error('Erreur findNotValidated', [
-                'error' => $e->getMessage()
-            ]);
+            $this->logger?->error('Erreur findNotValidated', ['error' => $e->getMessage()]);
             return [];
         }
     }
 
-    /**
-     * Trouve les suivis par transporteur (si tu appelles cette méthode avec "LIV", elle retournera naturellement des lignes LIV.
-     * Garde-la telle quelle pour un comportement "exact" par transporteur.)
-     */
     public function findByTransporteur(string $transporteur)
     {
         try {
@@ -274,9 +205,6 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * Compte les suivis par statut
-     */
     public function countByStatus()
     {
         try {
@@ -290,19 +218,13 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
             foreach ($result as $row) {
                 $counts[$row['statut']] = (int) $row['count'];
             }
-
             return $counts;
         } catch (\Exception $e) {
-            $this->logger?->error('Erreur countByStatus', [
-                'error' => $e->getMessage()
-            ]);
+            $this->logger?->error('Erreur countByStatus', ['error' => $e->getMessage()]);
             return [];
         }
     }
 
-    /**
-     * Retourne les lignes pour un CodeProduit (= ref produit), avec pagination. Renvoie [items, total].
-     */
     public function findByCodeProduitPaginated(string $codeProduit, int $page = 1, int $limit = 20): array
     {
         $qb = $this->createQueryBuilder('s')
@@ -310,35 +232,25 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
             ->setParameter('code', trim($codeProduit))
             ->orderBy('s.updatedAt', 'DESC');
 
-        // Exclure LIV si souhaité :
-        // $this->excludeLIV($qb, 's');
-
-        // total
         $countQb = clone $qb;
         $total = (int) $countQb->select('COUNT(s.id)')
             ->resetDQLPart('orderBy')
             ->getQuery()
             ->getSingleScalarResult();
 
-        // page
         $qb->setFirstResult(($page - 1) * $limit)
            ->setMaxResults($limit);
 
         $items = $qb->getQuery()->getResult();
-
         return [$items, $total];
     }
 
-    /**
-     * Version filtrable + paginée sur CodeProduit.
-     */
     public function findByCodeProduitFilteredPaginated(string $codeProduit, array $f, int $page = 1, int $limit = 20): array
     {
         $qb = $this->createQueryBuilder('s')
             ->where('s.CodeProduit = :code')
             ->setParameter('code', trim($codeProduit));
 
-        // LIKE sur les champs texte (contient)
         if (!empty($f['noBl']))         { $qb->andWhere('s.No_Bl LIKE :noBl')->setParameter('noBl', '%'.$f['noBl'].'%'); }
         if (!empty($f['noCmd']))        { $qb->andWhere('s.No_Cmd LIKE :noCmd')->setParameter('noCmd', '%'.$f['noCmd'].'%'); }
         if (!empty($f['client']))       { $qb->andWhere('s.Client LIKE :client')->setParameter('client', '%'.$f['client'].'%'); }
@@ -349,71 +261,112 @@ class SuividupreparationdujourRepository extends ServiceEntityRepository
         if (!empty($f['preparateur']))  { $qb->andWhere('s.Preparateur LIKE :preparateur')->setParameter('preparateur', '%'.$f['preparateur'].'%'); }
         if (!empty($f['transporteur'])) { $qb->andWhere('s.Transporteur LIKE :transporteur')->setParameter('transporteur', '%'.$f['transporteur'].'%'); }
 
-        // Dates
         if (!empty($f['maj_from'])) { $qb->andWhere('s.updatedAt >= :majFrom')->setParameter('majFrom', $f['maj_from']); }
-        if (!empty($f['maj_to']))   { $qb->andWhere('s.updatedAt <= :majTo')  ->setParameter('majTo',   $f['maj_to']); }
+        if (!empty($f['maj_to']))   { $qb->andWhere('s.updatedAt <= :majTo')->setParameter('majTo',   $f['maj_to']); }
         if (!empty($f['liv_from'])) { $qb->andWhere('s.Date_liv >= :livFrom')->setParameter('livFrom', $f['liv_from']); }
-        if (!empty($f['liv_to']))   { $qb->andWhere('s.Date_liv <= :livTo')  ->setParameter('livTo',   $f['liv_to']); }
+        if (!empty($f['liv_to']))   { $qb->andWhere('s.Date_liv <= :livTo')->setParameter('livTo',   $f['liv_to']); }
 
-        // Exclure LIV pour cette vue filtrable (souvent utile)
         $this->excludeLIV($qb, 's');
 
-        // Total
         $countQb = clone $qb;
         $total = (int) $countQb->select('COUNT(s.id)')
             ->resetDQLPart('orderBy')
             ->getQuery()
             ->getSingleScalarResult();
 
-        // Page + tri (par défaut : updatedAt desc, puis Date_liv desc)
         $qb->orderBy('s.updatedAt', 'DESC')->addOrderBy('s.Date_liv', 'DESC')
            ->setFirstResult(($page - 1) * $limit)
            ->setMaxResults($limit);
 
         $items = $qb->getQuery()->getResult();
-
         return [$items, $total];
     }
 
-    /* =========================
-       Méthodes dédiées "hors LIV"
-       ========================= */
-
-    /**
-     * Liste DISTINCT des transporteurs (hors LIV), triés A→Z.
-     * Retourne un simple tableau de chaînes.
-     */
-    public function findDistinctTransporteursExcludingLIV(): array
+    /** KO = Flasher = 'KO' + filtres optionnels */
+    public function createKoQueryBuilder(array $filters = []): QueryBuilder
     {
         $qb = $this->createQueryBuilder('s')
-            ->select('DISTINCT s.Transporteur AS transporteur')
-            ->where('s.Transporteur IS NOT NULL')
-            ->andWhere('TRIM(s.Transporteur) <> \'\'')
-            ->orderBy('s.Transporteur', 'ASC');
+            ->andWhere('s.Flasher = :status')
+            ->setParameter('status', 'KO')
+            ->orderBy('s.updatedAt', 'DESC');
 
-        $this->excludeLIV($qb, 's');
+        if (!empty($filters['codeProduit'])) {
+            $qb->andWhere('s.CodeProduit LIKE :codeProduit')->setParameter('codeProduit', '%'.$filters['codeProduit'].'%');
+        }
+        if (!empty($filters['client'])) {
+            $qb->andWhere('s.Client LIKE :client')->setParameter('client', '%'.$filters['client'].'%');
+        }
+        if (!empty($filters['preparateur'])) {
+            $qb->andWhere('s.Preparateur LIKE :prep')->setParameter('prep', '%'.$filters['preparateur'].'%');
+        }
+        if (!empty($filters['dateFrom'])) {
+            $qb->andWhere('s.Date_liv >= :dateFrom')->setParameter('dateFrom', $filters['dateFrom']->format('Y-m-d 00:00:00'));
+        }
+        if (!empty($filters['dateTo'])) {
+            $qb->andWhere('s.Date_liv <= :dateTo')->setParameter('dateTo', $filters['dateTo']->format('Y-m-d 23:59:59'));
+        }
 
-        return array_map(
-            static fn($row) => $row['transporteur'],
-            $qb->getQuery()->getArrayResult()
-        );
+        return $qb;
+    }
+
+    /** @return array{items: array<Suividupreparationdujour>, total:int} */
+    public function paginateKo(array $filters = [], int $page = 1, int $limit = 25): array
+    {
+        $page = max(1, $page);
+        $limit = max(1, min($limit, 200));
+
+        $qb = $this->createKoQueryBuilder($filters)
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
+
+        $items = $qb->getQuery()->getResult();
+
+        $countQb = clone $this->createKoQueryBuilder($filters);
+        $countQb->select('COUNT(s.id)');
+        $total = (int) $countQb->getQuery()->getSingleScalarResult();
+
+        return ['items' => $items, 'total' => $total];
     }
 
     /**
-     * Comptage par transporteur (hors LIV), trié par total décroissant.
-     * Retourne un tableau d'array ['transporteur' => string, 'total' => int].
+     * Pagination KO + dernier suivi (map [idSuivi => KoSuivi|null])
+     * @return array{items: array<Suividupreparationdujour>, total:int, last: array<int, \App\Entity\KoSuivi|null>}
      */
-    public function countByTransporteurExcludingLIV(): array
+    public function paginateKoWithLast(array $filters = [], int $page = 1, int $limit = 25, ?KoSuiviRepository $koRepo = null): array
     {
-        $qb = $this->createQueryBuilder('s')
-            ->select('s.Transporteur AS transporteur, COUNT(s.id) AS total')
-            ->where('s.Transporteur IS NOT NULL')
-            ->andWhere('TRIM(s.Transporteur) <> \'\'')
-            ->groupBy('s.Transporteur')
-            ->orderBy('total', 'DESC');
+        $base = $this->paginateKo($filters, $page, $limit);
+        $items = $base['items'];
 
-        $this->excludeLIV($qb, 's');
+        $ids = array_map(static fn(Suividupreparationdujour $s) => $s->getId(), $items);
+        $last = [];
 
-        return $qb->getQuery()->getArrayResult();
+        if ($ids) {
+            /** @var KoSuiviRepository $koRepo */
+            $koRepo ??= $this->getEntityManager()->getRepository(\App\Entity\KoSuivi::class);
+            $last = $koRepo->findLatestForIds($ids);
+        }
+
+        return ['items' => $items, 'total' => $base['total'], 'last' => $last];
+    }
+
+    /**
+     * Export KO + dernier suivi (limité à 10k par défaut)
+     * @return array{items: array<Suividupreparationdujour>, last: array<int, \App\Entity\KoSuivi|null>}
+     */
+    public function exportKoWithLast(array $filters = [], int $limit = 10000, ?KoSuiviRepository $koRepo = null): array
+    {
+        $qb = $this->createKoQueryBuilder($filters)->setMaxResults($limit);
+        $items = $qb->getQuery()->getResult();
+
+        $ids = array_map(static fn(Suividupreparationdujour $s) => $s->getId(), $items);
+        $last = [];
+
+        if ($ids) {
+            /** @var KoSuiviRepository $koRepo */
+            $koRepo ??= $this->getEntityManager()->getRepository(\App\Entity\KoSuivi::class);
+            $last = $koRepo->findLatestForIds($ids);
+        }
+
+        return ['items' => $items, 'last' => $last];
     }
 }

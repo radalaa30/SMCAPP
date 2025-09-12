@@ -1,0 +1,108 @@
+{% extends 'base2.html.twig' %}
+{% block title %}Détail KO #{{ row.id }}{% endblock %}
+
+{% block body %}
+<h1>Détail KO #{{ row.id }}</h1>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <table class="table table-bordered table-sm">
+      <tbody>
+        <tr><th>Flasher</th><td>{{ row.flasher }}</td></tr>
+        <tr><th>CodeProduit</th><td>{{ row.codeProduit }}</td></tr>
+        <tr><th>Gencode_uv</th><td>{{ row.gencodeUv }}</td></tr>
+        <tr><th>No_Palette</th><td>{{ row.noPalette }}</td></tr>
+        <tr><th>No_Pal</th><td>{{ row.noPal }}</td></tr>
+        <tr><th>Zone</th><td>{{ row.zone }}</td></tr>
+        <tr><th>Adresse</th><td>{{ row.adresse }}</td></tr>
+        <tr><th>Nb_Pal</th><td>{{ row.nbPal }}</td></tr>
+        <tr><th>Nb_col</th><td>{{ row.nbCol }}</td></tr>
+        <tr><th>Nb_art</th><td>{{ row.nbArt }}</td></tr>
+        <tr><th>No_Bl</th><td>{{ row.noBl }}</td></tr>
+        <tr><th>Date_liv</th><td>{{ row.dateLiv ? row.dateLiv|date('Y-m-d H:i') : '' }}</td></tr>
+        <tr><th>No_Cmd</th><td>{{ row.noCmd }}</td></tr>
+        <tr><th>Client</th><td>{{ row.client }}</td></tr>
+        <tr><th>Statut_Cde</th><td>{{ row.statutCde }}</td></tr>
+        <tr><th>Code_Client</th><td>{{ row.codeClient }}</td></tr>
+        <tr><th>Préparateur</th><td>{{ row.preparateur }}</td></tr>
+        <tr><th>Transporteur</th><td>{{ row.transporteur }}</td></tr>
+        <tr><th>Mis à jour</th><td>{{ row.updatedAt ? row.updatedAt|date('Y-m-d H:i') : '' }}</td></tr>
+        <tr><th>Validé le</th><td>{{ row.valider ? row.valider|date('Y-m-d') : '' }}</td></tr>
+      </tbody>
+    </table>
+
+    <a href="{{ path('ko_index') }}" class="btn btn-secondary">← Retour liste</a>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header">Traiter ce KO</div>
+      <div class="card-body">
+        <form method="post" action="{{ path('ko_traiter', {id: row.id}) }}">
+          <div class="mb-3">
+            <label class="form-label">Statut</label>
+            <select name="statut" class="form-select" required>
+              {% for s in statuts %}
+                <option value="{{ s }}">{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">KO traité ?</label>
+            <select name="traite" class="form-select">
+              <option value="0">Non</option>
+              <option value="1">Oui</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Cause (courte)</label>
+            <input type="text" name="cause" maxlength="255" class="form-control" placeholder="Ex: Gencode erroné, Pal manquante, etc.">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Commentaire (détail)</label>
+            <textarea name="commentaire" rows="4" class="form-control" placeholder="Détail, actions menées, références..."></textarea>
+          </div>
+
+          <button class="btn btn-primary">Enregistrer</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <h5>Historique du traitement</h5>
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Statut</th>
+            <th>Traité</th>
+            <th>Cause</th>
+            <th>Auteur</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in historique %}
+            <tr>
+              <td>{{ h.createdAt|date('Y-m-d H:i') }}</td>
+              <td>{{ h.statut }}</td>
+              <td>{{ h.traite ? 'Oui' : 'Non' }}</td>
+              <td>{{ h.cause }}</td>
+              <td>{{ h.auteur }}</td>
+            </tr>
+            {% if h.commentaire %}
+              <tr>
+                <td colspan="5" class="text-muted">{{ h.commentaire }}</td>
+              </tr>
+            {% endif %}
+          {% else %}
+            <tr><td colspan="5" class="text-center">Aucun traitement enregistré.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
