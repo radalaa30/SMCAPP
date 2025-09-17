@@ -154,4 +154,42 @@ class InventairecompletRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /* ===========================
+     * 🔽 AJOUT POUR LA “MASSE”
+     * =========================== */
+
+    /**
+     * Récupère uniquement les enregistrements dont l'emplacement
+     * commence par une des bases fournies (ex: 'M1_A_095' OU 'M1_A_095-%').
+     *
+     * @param string[] $bases Bases "M1_A_095", "M1_B_200", …
+     * @return Inventairecomplet[]
+     */
+    public function findByBasePrefixesIn(array $bases): array
+    {
+        if (empty($bases)) return [];
+
+        $chunkSize = 120;
+        $results = [];
+
+        foreach (array_chunk($bases, $chunkSize) as $chunk) {
+            $qb = $this->createQueryBuilder('i');
+            $orX = $qb->expr()->orX();
+
+            foreach ($chunk as $idx => $base) {
+                // On matche l'égalité stricte ET le préfixe avec "-".
+                $paramEq   = 'eq' . $idx;
+                $paramLike = 'lk' . $idx;
+                $orX->add("(i.emplacement = :$paramEq OR i.emplacement LIKE :$paramLike)");
+                $qb->setParameter($paramEq, $base);
+                $qb->setParameter($paramLike, $base . '-%');
+            }
+
+            $res = $qb->where($orX)->getQuery()->getResult();
+            if (!empty($res)) $results = array_merge($results, $res);
+        }
+
+        return $results;
+    }
 }

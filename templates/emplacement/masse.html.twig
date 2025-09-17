@@ -1,0 +1,325 @@
+{# templates/emplacement/masse.html.twig #}
+{% extends 'base2.html.twig' %}
+
+{% block title %}Masse – Visualisation des emplacements{% endblock %}
+
+{% block stylesheets %}
+  {{ parent() }}
+  <style>
+    /* ==== PLEINE LARGEUR (full-bleed) ==== */
+    html, body { width: 100%; height: 100%; margin: 0; padding: 0; }
+    /* Force le bloc principal à déborder des conteneurs Bootstrap éventuels */
+    .page-fullbleed {
+      width: 100vw;
+      margin-left: calc(50% - 50vw);
+      margin-right: calc(50% - 50vw);
+    }
+    /* Empêche toute contrainte de largeur héritée du layout */
+    .page-fullbleed,
+    .page-fullbleed .container-fluid,
+    .page-fullbleed .container-emplacements,
+    .page-fullbleed .cellule-vue {
+      max-width: none !important;
+    }
+
+    :root{
+      --rack-blue:#4472C4;
+      --free-space:#fff;
+      --occupied-space:#92D050;
+      --blocked-space:#FF3B30;
+      --header-orange:#FFC000;
+      --en-sortie:#FF99CC;
+      --probleme-color:#8B0000;
+      --multi-ref:#845EC2;
+      --en-sortie-multi:#D64CA8; /* en sortie + multiRef */
+      --cell-width:120px;--cell-height:70px;--sep-width:12px;--sep-radius:3px;
+    }
+
+    body{background:#f5f7fa}
+    .container-fluid{padding-left:0;padding-right:0} /* bord à bord visuel */
+    .container-emplacements{margin-top:12px;overflow-x:auto;padding:10px;width:100vw}
+    .cellule-vue{border:2px solid #000;padding:16px 10px 20px;background:#fff;border-left:0;border-right:0}
+    .cellule-header{background:#343a40;color:#fff;padding:12px;font-weight:600;text-align:center;margin-bottom:8px}
+    .allee-title{font-weight:700;font-size:1.05rem;margin:12px 10px 6px}
+    .cote-label{background:#E7E6E6;padding:8px 10px;font-weight:600;border:1px solid #000;margin:10px 10px 4px}
+
+    .positions-row{display:flex;flex-wrap:nowrap;border-left:2px solid #000;border-right:2px solid #000}
+    .position-group{display:flex}
+    .position-column{display:flex;flex-direction:column;width:var(--cell-width)}
+
+    .position-header{height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;background:var(--header-orange);border:1px solid #000;border-top:2px solid #000}
+    .cell{height:var(--cell-height);display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #000;font-size:14px;font-weight:800;position:relative;padding:6px;cursor:pointer;transition:transform .15s,box-shadow .15s}
+    .cell:hover{transform:scale(1.02);box-shadow:0 0 8px rgba(0,0,0,.25);z-index:10}
+
+    .vide{background:#fff}
+    .plein{background:var(--occupied-space)}
+    .rouge{background:var(--blocked-space);color:#fff}
+    .enSortie{background:var(--en-sortie)}
+    .multiRef{background:var(--multi-ref);color:#fff}
+    .enSortieMulti{background:var(--en-sortie-multi);color:#fff}
+    .probleme{outline:3px solid #FFD700; position:relative}
+    .probleme:after{content:'⚠';position:absolute;top:2px;right:4px}
+
+    .qty{font-size:16px;line-height:1}
+    .small{font-size:10px;font-weight:600;opacity:.85}
+    .separator-column{width:var(--sep-width);display:flex;flex-direction:column;align-items:stretch;justify-content:stretch;padding:0 2px}
+    .separator-cell{height:calc(var(--cell-height));background:var(--rack-blue);border-radius:var(--sep-radius)}
+    .separator-header{height:28px}
+
+    .badge-gap{display:flex;align-items:center;justify-content:center;width:150px;margin:0 8px;background:#222;color:#fff;border-radius:6px;font-weight:700}
+    .badge-gap.extincteur{background:#d7263d}
+    .badge-gap.passage{background:#444}
+
+    #hoverTooltip{position:fixed;display:none;background:#343a40;color:#fff;border:1px solid #adb5bd;border-radius:6px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:5000;max-width:360px;pointer-events:none;font-size:14px}
+    .legende{background:#f8f9fa;border:1px solid #dee2e6;border-radius:5px;padding:15px;margin-top:12px;margin-left:10px;margin-right:10px}
+    .legende-item{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    .legende-couleur{width:25px;height:25px;border:1px solid #adb5bd;border-radius:3px}
+    .legende-couleur.rack{background:var(--rack-blue)}
+    .legende-couleur.orange{background:var(--header-orange)}
+    .legende-couleur.multiRef{background:var(--multi-ref)}
+    .legende-couleur.enSortieMulti{background:var(--en-sortie-multi)}
+
+    @media(max-width:1200px){:root{--cell-width:110px;--cell-height:64px}}
+    @media(max-width:992px){:root{--cell-width:100px;--cell-height:58px;--sep-width:6px}}
+  </style>
+{% endblock %}
+
+{% block javascripts %}
+  {{ parent() }}
+  <script>
+    document.addEventListener('DOMContentLoaded',function(){
+      const modal=document.getElementById('problemModal');
+      const span=modal.querySelector('.close');
+      span.onclick=function(){modal.style.display='none'}
+      window.onclick=function(e){if(e.target==modal)modal.style.display='none'}
+
+      document.querySelectorAll('.cell').forEach(function(cell){
+        cell.addEventListener('click',function(e){
+          e.stopPropagation();
+          const emp=this.dataset.emplacement;
+          if(!emp) return;
+          document.getElementById('problemEmplacement').value=emp||'';
+          modal.style.display='block';
+        });
+      });
+
+      document.getElementById('problemForm').addEventListener('submit',function(e){
+        e.preventDefault();
+        const emplacement=document.getElementById('problemEmplacement').value;
+        const description=document.getElementById('problemDescription').value;
+        fetch('{{ path('app_probleme_signaler') }}',{
+          method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},
+          body:JSON.stringify({emplacement,description})
+        }).then(r=>r.json()).then(data=>{
+          if(data.success){
+            const cell=document.querySelector(`.cell[data-emplacement="${CSS.escape(emplacement)}"]`);
+            if(cell){cell.classList.add('probleme');}
+            alert('Problème signalé'); modal.style.display='none'; document.getElementById('problemDescription').value='';
+          }else alert('Erreur lors du signalement');
+        }).catch(()=>alert('Erreur lors du signalement'));
+      });
+
+      const tooltip=document.getElementById('hoverTooltip');
+      function positionTooltipRelativeToCell(node){
+        const rect=node.getBoundingClientRect();
+        tooltip.style.left='0px'; tooltip.style.top='0px'; tooltip.style.visibility='hidden'; tooltip.style.display='block';
+        const tRect=tooltip.getBoundingClientRect(); const vw=window.innerWidth; const vh=window.innerHeight;
+        let left=rect.right+12, top=rect.top;
+        if(left+tRect.width>vw-8) left=rect.left-tRect.width-12;
+        if(top+tRect.height>vh-8) top=Math.max(8,vh-tRect.height-8);
+        if(top<8) top=8;
+        tooltip.style.left=left+'px'; tooltip.style.top=top+'px'; tooltip.style.visibility='visible';
+      }
+      function attachTooltip(node){
+        const inner=node.querySelector('.info-box'); if(!inner) return;
+        node.addEventListener('mouseenter',()=>{tooltip.innerHTML=inner.innerHTML; positionTooltipRelativeToCell(node);});
+        node.addEventListener('mousemove',()=>{ if(tooltip.style.display==='block') positionTooltipRelativeToCell(node); });
+        node.addEventListener('mouseleave',()=>{ tooltip.style.display='none'; tooltip.innerHTML='';});
+      }
+      document.querySelectorAll('.cell').forEach(attachTooltip);
+      window.addEventListener('resize',()=>{ if(tooltip.style.display==='block'){const hovered=document.querySelector('.cell:hover'); if(hovered) positionTooltipRelativeToCell(hovered);} });
+    });
+  </script>
+{% endblock %}
+
+{% macro pad3(n) %}
+  {%- if n < 10 -%}00{{ n }}
+  {%- elseif n < 100 -%}0{{ n }}
+  {%- else -%}{{ n }}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro render_cote(cote_label, codes, emplacements) %}
+  <div class="cote-label">{{ cote_label }}</div>
+  <div class="positions-row">
+    {% set total = codes|length %}
+    {% for chunkStart in range(0, total-1, 4) %}
+      <div class="position-group">
+        {% for i in range(chunkStart, chunkStart + 3) %}
+          {% if i < total %}
+            {% set code = codes[i] %}
+            {% if code == '__EXT__' or code == '__PASS__' %}
+              <div class="badge-gap {{ code == '__EXT__' ? 'extincteur' : 'passage' }}">
+                {{ code == '__EXT__' ? 'EXTINCTEUR' : 'PASSAGE' }}
+              </div>
+            {% else %}
+              {% set infos = emplacements[code] ?? null %}
+
+              {# Priorité: rouge > enSortieMulti > enSortie > multiRef > plein > vide #}
+              {% set status = 'vide' %}
+              {% if infos %}
+                {% if infos.rouge %}
+                  {% set status = 'rouge' %}
+                {% elseif infos.enSortie and infos.multiRef %}
+                  {% set status = 'enSortieMulti' %}
+                {% elseif infos.enSortie %}
+                  {% set status = 'enSortie' %}
+                {% elseif infos.multiRef %}
+                  {% set status = 'multiRef' %}
+                {% elseif infos.plein %}
+                  {% set status = 'plein' %}
+                {% else %}
+                  {% set status = 'vide' %}
+                {% endif %}
+              {% endif %}
+
+              <div class="position-column">
+                <div class="cell {{ status }} {% if infos and infos.probleme %}probleme{% endif %}" data-emplacement="{{ code }}">
+                  {% if infos %}
+                    <div class="qty">{{ infos.uvtotal }}</div>
+                    <div class="small">
+                      {% if infos.multiRef and infos.enSortie %}
+                        {{ infos.count }} pal. / multi-refs / en sortie
+                      {% elseif infos.multiRef %}
+                        {{ infos.count }} pal. / multi-refs
+                      {% elseif infos.multiple %}
+                        {{ infos.count }} pal.
+                      {% else %}
+                        1 palette
+                      {% endif %}
+                    </div>
+                    <div class="info-box" style="display:none">
+                      <p><strong>Adresse :</strong> {{ code }}</p>
+                      <p><strong>UV total :</strong> {{ infos.uvtotal }}</p>
+                      <p><strong>UC dispo :</strong> {{ infos.ucdispo }} | <strong>UR dispo :</strong> {{ infos.urdispo }}</p>
+                      <p><strong>UV en sortie :</strong> {{ infos.uvensortie }}</p>
+                      {% if infos.codeprod|length > 0 %}
+                        <p><strong>Produits :</strong></p>
+                        <ul style="margin-left:14px">
+                          {% for j in 0..infos.codeprod|length-1 %}
+                            <li>{{ infos.codeprod[j] }} — {{ infos.designation[j] }} ({{ infos.nopalinfo[j] }})</li>
+                          {% endfor %}
+                        </ul>
+                      {% endif %}
+                      {% if infos.probleme %}<p><strong class="text-danger">⚠ Problème signalé</strong></p>{% endif %}
+                    </div>
+                  {% else %}
+                    <div class="qty">0</div>
+                    <div class="small">vide</div>
+                  {% endif %}
+                </div>
+                <div class="position-header">{{ code }}</div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+
+        {% if chunkStart + 4 < total %}
+          <div class="separator-column" aria-hidden="true">
+            <div class="separator-header"></div>
+            <div class="separator-cell"></div>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
+{% import _self as ui %}
+
+{% block body %}
+<div class="page-fullbleed">
+  <div class="container-fluid">
+    <h1 class="my-3" style="padding-left:10px">Masse – Visualisation des emplacements</h1>
+
+    <div class="cellule-vue">
+      <div class="cellule-header">Cellule: M1 – Allées A & B</div>
+
+      <div class="container-emplacements">
+        {# ===================== ALLÉE A ===================== #}
+        <div class="allee-title">Allée A</div>
+
+       
+
+        {# Côté IMPAIR #}
+        {% set codes_A_impair = [] %}
+        {% for n in 95..123 %}{% if n is odd %}{% set codes_A_impair = codes_A_impair|merge(['M1_A_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {% set codes_A_impair = codes_A_impair|merge(['__EXT__']) %}
+        {% for n in 201..223 %}{% if n is odd %}{% set codes_A_impair = codes_A_impair|merge(['M1_A_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {{ ui.render_cote('Allée A – Côté Impair', codes_A_impair, emplacements) }}
+
+         {# Côté PAIR #}
+        {% set codes_A_pair = [] %}
+        {% for n in 94..114 %}{% if n is even %}{% set codes_A_pair = codes_A_pair|merge(['M1_A_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {% set codes_A_pair = codes_A_pair|merge(['__PASS__']) %}
+        {% for n in 200..228 %}{% if n is even %}{% set codes_A_pair = codes_A_pair|merge(['M1_A_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {{ ui.render_cote('Allée A – Côté Pair', codes_A_pair, emplacements) }}
+
+        <hr style="margin: 14px 10px;">
+
+        {# ===================== ALLÉE B ===================== #}
+        <div class="allee-title">Allée B</div>
+
+        
+
+        {# Côté IMPAIR #}
+        {% set codes_B_impair = [] %}
+        {% for n in 95..115 %}{% if n is odd %}{% set codes_B_impair = codes_B_impair|merge(['M1_B_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {% set codes_B_impair = codes_B_impair|merge(['__PASS__']) %}
+        {% for n in 201..229 %}{% if n is odd %}{% set codes_B_impair = codes_B_impair|merge(['M1_B_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {{ ui.render_cote('Allée B – Côté Impair', codes_B_impair, emplacements) }}
+        {# Côté PAIR #}
+        {% set codes_B_pair = [] %}
+        {% for n in 94..122 %}{% if n is even %}{% set codes_B_pair = codes_B_pair|merge(['M1_B_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {% set codes_B_pair = codes_B_pair|merge(['__EXT__']) %}
+        {% for n in 200..222 %}{% if n is even %}{% set codes_B_pair = codes_B_pair|merge(['M1_B_' ~ ui.pad3(n)|trim]) %}{% endif %}{% endfor %}
+        {{ ui.render_cote('Allée B – Côté Pair', codes_B_pair, emplacements) }}
+      </div>
+    </div>
+
+    <div class="legende">
+      <h5>Légende</h5>
+      <div class="legende-item"><div class="legende-couleur" style="background:#fff;"></div><span>Emplacement vide</span></div>
+      <div class="legende-item"><div class="legende-couleur" style="background:var(--occupied-space);"></div><span>Emplacement occupé</span></div>
+      <div class="legende-item"><div class="legende-couleur multiRef"></div><span>Plusieurs références</span></div>
+      <div class="legende-item"><div class="legende-couleur enSortieMulti"></div><span>En sortie + plusieurs références</span></div>
+      <div class="legende-item"><div class="legende-couleur" style="background:var(--en-sortie);"></div><span>Palette(s) en sortie</span></div>
+      <div class="legende-item"><div class="legende-couleur" style="background:var(--blocked-space);"></div><span>Palette bloquée</span></div>
+      <div class="legende-item"><div class="legende-couleur rack"></div><span>Lisse de séparation (tous les 4 emplacements)</span></div>
+      <div class="legende-item"><div class="legende-couleur orange"></div><span>En-tête adresse</span></div>
+      <div class="legende-item"><div class="legende-couleur" style="background:#fff;border:3px solid #FFD700;"></div><span>Problème signalé</span></div>
+    </div>
+  </div>
+</div>
+
+{# Modal #}
+<div id="problemModal" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,.5);">
+  <div class="modal-content" style="background:#fff;margin:15% auto;padding:20px;border:1px solid #888;width:50%;max-width:720px;border-radius:8px;">
+    <span class="close" style="float:right;font-size:28px;font-weight:bold;cursor:pointer;">&times;</span>
+    <h3>Signaler un problème</h3>
+    <form id="problemForm">
+      <div class="form-group">
+        <label for="problemEmplacement">Adresse :</label>
+        <input type="text" id="problemEmplacement" class="form-control" readonly>
+      </div>
+      <div class="form-group">
+        <label for="problemDescription">Description :</label>
+        <textarea id="problemDescription" class="form-control" rows="4" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary mt-3">Signaler</button>
+    </form>
+  </div>
+</div>
+
+<div id="hoverTooltip" aria-hidden="true"></div>
+{% endblock %}

@@ -181,6 +181,11 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="submenuProduit">
                                 <li>
+                                <a class="dropdown-item" href="{{ path('app_masse') }}">
+                                    <i class="fa-solid fa-magnifying-glass me-2"></i> Masse
+                                </a>
+                                </li>
+                                <li>
                                     <a class="dropdown-item" href="{{ path('app_liste_produits_index') }}">
                                         <i class="fa-regular fa-rectangle-list me-2"></i> Parcourir / Rechercher la liste
                                     </a>
@@ -190,6 +195,7 @@
                                         <i class="fa-solid fa-magnifying-glass me-2"></i> Recherche produit en masse
                                     </a>
                                 </li>
+                                
                             </ul>
                         </li>
                         {# /Sous-menu Produit #}
