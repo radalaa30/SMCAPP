@@ -22,11 +22,11 @@
           <div class="fs-6">{{ produit.uvEnStock }}</div>
         </div>
         <div class="col-md-2">
-          <div class="text-muted">Nb ruc/pal</div>
-          <div class="fs-6">{{ produit.nbrucPal }}</div>
+          <div class="text-muted">Seuil réapp</div>
+          <div class="fs-6">{{ produit.seuilreapp }}</div>
         </div>
         <div class="col-md-2">
-          <div class="text-muted">Poids</div>
+          <div class="text-muted">Poids (kg)</div>
           <div class="fs-6">{{ produit.pinkg }}</div>
         </div>
       </div>
@@ -103,7 +103,7 @@
             <label class="form-label mb-1">Taille page</label>
             <select name="slimit" class="form-select" onchange="this.form.submit()">
               {% for n in [10,20,50,100,200] %}
-                <option value="{{ n }}" {{ slimit == n ? 'selected' }}>{{ n }}</option>
+                <option value="{{ n }}" {{ slimit == n ? 'selected' : '' }}>{{ n }}</option>
               {% endfor %}
             </select>
           </div>
@@ -158,10 +158,11 @@
             <td>{{ s.zone }}</td>
             <td>{{ s.adresse }}</td>
             <td>
-              {% set fl = s.flasher ?? '' %}
-              {% if fl == 'Ok' %}
+              {% set fl = (s.flasher ?? '') %}
+              {% set flUpper = fl|upper %}
+              {% if flUpper == 'OK' %}
                 <span class="badge text-bg-success">Ok</span>
-              {% elseif fl == 'KO' %}
+              {% elseif flUpper == 'KO' %}
                 <span class="badge text-bg-danger">KO</span>
               {% elseif fl is empty %}
                 <span class="badge text-bg-secondary">En cours</span>
@@ -184,27 +185,27 @@
     </table>
   </div>
 
-  {# Pagination des suivis : on préserve tous les filtres via la query courante #}
+  {# Pagination des suivis : on préserve tous les filtres #}
   {% if spages > 1 %}
     {% set q = app.request.query.all %}
     <nav aria-label="Pagination suivis" class="mt-2">
       <ul class="pagination">
         <li class="page-item {{ spage == 1 ? 'disabled' }}">
-          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': 1})|url_encode) }}">«</a>
+          <a class="page-link" href="{{ path('app_liste_produits_show', q|merge({'id': produit.id, 'spage': 1})) }}">«</a>
         </li>
         <li class="page-item {{ spage == 1 ? 'disabled' }}">
-          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': spage - 1})|url_encode) }}">Préc.</a>
+          <a class="page-link" href="{{ path('app_liste_produits_show', q|merge({'id': produit.id, 'spage': spage - 1})) }}">Préc.</a>
         </li>
         {% for p in range(max(1, spage-2), min(spages, spage+2)) %}
           <li class="page-item {{ p == spage ? 'active' }}">
-            <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': p})|url_encode) }}">{{ p }}</a>
+            <a class="page-link" href="{{ path('app_liste_produits_show', q|merge({'id': produit.id, 'spage': p})) }}">{{ p }}</a>
           </li>
         {% endfor %}
         <li class="page-item {{ spage == spages ? 'disabled' }}">
-          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': spage + 1})|url_encode) }}">Suiv.</a>
+          <a class="page-link" href="{{ path('app_liste_produits_show', q|merge({'id': produit.id, 'spage': spage + 1})) }}">Suiv.</a>
         </li>
         <li class="page-item {{ spage == spages ? 'disabled' }}">
-          <a class="page-link" href="{{ path('app_liste_produits_show', {id: produit.id}) ~ '?' ~ (q|merge({'spage': spages})|url_encode) }}">»</a>
+          <a class="page-link" href="{{ path('app_liste_produits_show', q|merge({'id': produit.id, 'spage': spages})) }}">»</a>
         </li>
       </ul>
     </nav>

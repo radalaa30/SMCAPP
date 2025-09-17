@@ -6,148 +6,257 @@ use App\Entity\ListeProduits;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Psr\Log\LoggerInterface;
 
 class ImportlistesproduitsControllerService
 {
     private EntityManagerInterface $entityManager;
+    private ?LoggerInterface $logger;
+    
+    private const BATCH_SIZE = 100; // Réduit de 200 à 100
+    private const DEFAULT_SEUIL_REAPP = '0';
 
-    public function __construct(EntityManagerInterface $entityManager)
+    public function __construct(EntityManagerInterface $entityManager, LoggerInterface $logger = null)
     {
         $this->entityManager = $entityManager;
+        $this->logger = $logger;
     }
 
+    /**
+     * Import optimisé pour éviter les problèmes de mémoire
+     */
     public function importFile(UploadedFile $file): int
     {
-        // Supprimer toutes les données existantes
-        $connection = $this->entityManager->getConnection();
-        $connection->executeStatement('DELETE FROM liste_produits');
+        // Désactiver le query logging en mode debug pour économiser la mémoire
+        $this->entityManager->getConnection()->getConfiguration()->setSQLLogger(null);
         
-        // Réinitialiser les séquences d'ID auto-incrémentés si nécessaire
-        // Décommentez la ligne ci-dessous si vous utilisez MySQL et souhaitez réinitialiser l'auto-increment
-        // $connection->executeStatement('ALTER TABLE liste_produits AUTO_INCREMENT = 1');
+        // Augmenter la limite mémoire temporairement
+        $originalMemoryLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '1024M');
         
-        // Charger le fichier Excel
+        try {
+            $this->entityManager->beginTransaction();
+            
+            // 1) Vider la table
+            $connection = $this->entityManager->getConnection();
+            $connection->executeStatement('DELETE FROM liste_produits');
+            
+            // 2) Import avec lecture ligne par ligne (plus économe en mémoire)
+            $count = $this->processFileByChunks($file);
+            
+            $this->entityManager->commit();
+            
+            $this->log('info', "Import terminé avec succès", ['rows_imported' => $count]);
+            
+            return $count;
+            
+        } catch (\Throwable $e) {
+            $this->entityManager->rollback();
+            $this->log('error', "Erreur lors de l'import", ['error' => $e->getMessage()]);
+            throw new \RuntimeException("Erreur lors de l'import : " . $e->getMessage(), 0, $e);
+        } finally {
+            // Restaurer la limite mémoire originale
+            ini_set('memory_limit', $originalMemoryLimit);
+        }
+    }
+
+    /**
+     * Traitement par chunks pour économiser la mémoire
+     */
+    private function processFileByChunks(UploadedFile $file): int
+    {
         $spreadsheet = IOFactory::load($file->getPathname());
         $worksheet = $spreadsheet->getActiveSheet();
         
-        // Récupérer les données (en supposant que la première ligne contient les en-têtes)
-        $rows = $worksheet->toArray();
-        $headers = array_shift($rows);
-        
+        $highestRow = $worksheet->getHighestRow();
         $count = 0;
         
-        foreach ($rows as $row) {
-            // Ignorer les lignes vides
-            if (empty(array_filter($row))) {
-                continue;
-            }
+        // On traite par petits blocs
+        $chunkSize = 500; // Nombre de lignes à traiter d'un coup
+        
+        for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
+            $endRow = min($startRow + $chunkSize - 1, $highestRow);
             
-            // Créer un nouvel objet ListeProduits pour chaque ligne
-            $produit = new ListeProduits();
+            // Lire seulement le chunk actuel
+            $chunkData = $worksheet->rangeToArray(
+                "A{$startRow}:E{$endRow}",
+                null,
+                true,
+                false
+            );
             
-            // Associer les données en fonction de l'ordre des colonnes
-            // Ajustez cet ordre selon la structure de votre fichier Excel
-            $produit->setRef($row[0] ?? null);
-            $produit->setDes($row[1] ?? null);
-            $produit->setUvEnStock($row[2] ?? null);
-            $produit->setNbrucPal($row[3] ?? ''); // Ce champ n'est pas nullable
-            $produit->setPinkg($row[4] ?? null);
+            $count += $this->processChunk($chunkData);
             
-            // Persister l'entité
-            $this->entityManager->persist($produit);
-            $count++;
+            // Force la libération mémoire du chunk
+            unset($chunkData);
             
-            // Flush toutes les 100 entités pour optimiser la mémoire
-            if ($count % 100 === 0) {
-                $this->entityManager->flush();
-                $this->entityManager->clear();
-                
-                // Réinitialiser le gestionnaire d'entités pour libérer la mémoire
-                // mais garder les objets ListeProduits en mémoire
-                $this->entityManager->clear(ListeProduits::class);
-            }
+            // Log du progrès
+            $this->log('info', "Chunk traité", [
+                'rows_processed' => $endRow,
+                'total_rows' => $highestRow,
+                'memory_usage' => memory_get_usage(true)
+            ]);
         }
         
-        // Flush final pour les entités restantes
-        $this->entityManager->flush();
+        // Libérer la mémoire du spreadsheet
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
         
         return $count;
     }
-    
+
     /**
-     * Méthode alternative utilisant TRUNCATE si vous avez les privilèges nécessaires
-     * Cette méthode est généralement plus rapide pour de grandes tables
+     * Traite un chunk de données
+     */
+    private function processChunk(array $rows): int
+    {
+        $count = 0;
+        
+        foreach ($rows as $row) {
+            // Ignorer lignes vides
+            if (empty(array_filter($row, static fn($v) => $v !== null && $v !== ''))) {
+                continue;
+            }
+
+            $produit = $this->createProduitFromRow($row);
+            
+            if ($produit !== null) {
+                $this->entityManager->persist($produit);
+                $count++;
+                
+                // Flush plus fréquent avec un batch plus petit
+                if ($count % self::BATCH_SIZE === 0) {
+                    $this->entityManager->flush();
+                    $this->entityManager->clear(ListeProduits::class);
+                    
+                    // Force garbage collection
+                    if (function_exists('gc_collect_cycles')) {
+                        gc_collect_cycles();
+                    }
+                }
+            }
+        }
+        
+        // Flush final du chunk
+        $this->entityManager->flush();
+        $this->entityManager->clear(ListeProduits::class);
+        
+        return $count;
+    }
+
+    /**
+     * Crée un produit à partir d'une ligne de données
+     */
+    private function createProduitFromRow(array $row): ?ListeProduits
+    {
+        try {
+            $ref = isset($row[0]) ? trim((string)$row[0]) : null;
+            $des = isset($row[1]) ? trim((string)$row[1]) : null;
+            $pinkg = isset($row[2]) ? trim((string)$row[2]) : null;
+            $uvEnStock = isset($row[3]) ? trim((string)$row[3]) : null;
+            $seuilreapp = isset($row[4]) ? trim((string)$row[4]) : null;
+
+            if ($seuilreapp === null || $seuilreapp === '') {
+                $seuilreapp = self::DEFAULT_SEUIL_REAPP;
+            }
+
+            // Validation basique (optionnelle)
+            if (empty($ref)) {
+                $this->log('warning', "Ligne ignorée : Ref vide", ['row' => $row]);
+                return null;
+            }
+
+            $produit = new ListeProduits();
+            $produit->setRef($ref);
+            $produit->setDes($des);
+            $produit->setPinkg($pinkg);
+            $produit->setUvEnStock($uvEnStock);
+            $produit->setSeuilreapp($seuilreapp);
+
+            return $produit;
+            
+        } catch (\Throwable $e) {
+            $this->log('error', "Erreur lors de la création du produit", [
+                'row' => $row,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Version avec TRUNCATE (plus rapide mais nécessite des privilèges)
      */
     public function importFileWithTruncate(UploadedFile $file): int
     {
-        // Supprimer toutes les données existantes avec TRUNCATE
-        $connection = $this->entityManager->getConnection();
+        // Désactiver le query logging
+        $this->entityManager->getConnection()->getConfiguration()->setSQLLogger(null);
         
-        // Désactiver temporairement les contraintes de clé étrangère si nécessaire
-        // $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 0');
-        $connection->executeStatement('TRUNCATE TABLE liste_produits');
-        // $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
+        $originalMemoryLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '1024M');
         
-        // Procéder à l'importation comme dans la méthode principale
-        $spreadsheet = IOFactory::load($file->getPathname());
-        $worksheet = $spreadsheet->getActiveSheet();
-        
-        $rows = $worksheet->toArray();
-        $headers = array_shift($rows);
-        
-        $count = 0;
-        
-        foreach ($rows as $row) {
-            if (empty(array_filter($row))) {
-                continue;
+        try {
+            $connection = $this->entityManager->getConnection();
+            
+            // Optionnel : désactiver FK checks pour MySQL
+            try {
+                $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 0');
+                $connection->executeStatement('TRUNCATE TABLE liste_produits');
+                $connection->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
+            } catch (\Exception $e) {
+                // Fallback si TRUNCATE échoue
+                $connection->executeStatement('DELETE FROM liste_produits');
             }
+
+            return $this->processFileByChunks($file);
             
-            $produit = new ListeProduits();
-            $produit->setRef($row[0] ?? null);
-            $produit->setDes($row[1] ?? null);
-            $produit->setUvEnStock($row[2] ?? null);
-            $produit->setNbrucPal($row[3] ?? '');
-            $produit->setPinkg($row[4] ?? null);
-            
-            $this->entityManager->persist($produit);
-            $count++;
-            
-            if ($count % 100 === 0) {
-                $this->entityManager->flush();
-                $this->entityManager->clear(ListeProduits::class);
-            }
+        } finally {
+            ini_set('memory_limit', $originalMemoryLimit);
         }
-        
-        $this->entityManager->flush();
-        
-        return $count;
     }
-    
+
     /**
-     * Vérifie la structure du fichier Excel avant l'importation
-     * Retourne true si la structure est valide, false sinon
+     * Validation de la structure du fichier
      */
-    public function validateFileStructure(UploadedFile $file): bool
+    public function validateFileStructure(UploadedFile $file): array
     {
+        $errors = [];
+        
         try {
             $spreadsheet = IOFactory::load($file->getPathname());
             $worksheet = $spreadsheet->getActiveSheet();
             
-            $headers = $worksheet->toArray(null, true, true, true)[1];
+            // Lire seulement la première ligne
+            $headers = $worksheet->rangeToArray('A1:E1', null, true, false)[0] ?? [];
             
-            // Vérifier que les colonnes attendues sont présentes
-            // Ajustez selon les en-têtes attendus dans votre fichier
-            $requiredColumns = ['A', 'B', 'C', 'D', 'E']; // Ref, Des, UvEnStock, NbrucPal, Pinkg
+            $expectedHeaders = ['Ref', 'Des', 'Pinkg', 'UvEnStock', 'Seuilreapp'];
             
-            foreach ($requiredColumns as $column) {
-                if (!isset($headers[$column]) || empty($headers[$column])) {
-                    return false;
+            for ($i = 0; $i < count($expectedHeaders); $i++) {
+                if (!isset($headers[$i])) {
+                    $errors[] = "Colonne " . chr(65 + $i) . " manquante";
+                } elseif (empty(trim($headers[$i]))) {
+                    $errors[] = "En-tête vide en colonne " . chr(65 + $i);
                 }
             }
             
-            return true;
-        } catch (\Exception $e) {
-            return false;
+            // Libérer la mémoire
+            $spreadsheet->disconnectWorksheets();
+            unset($spreadsheet);
+            
+        } catch (\Throwable $e) {
+            $errors[] = "Impossible de lire le fichier : " . $e->getMessage();
+        }
+        
+        return $errors;
+    }
+
+    /**
+     * Helper pour logging
+     */
+    private function log(string $level, string $message, array $context = []): void
+    {
+        if ($this->logger) {
+            $this->logger->log($level, $message, $context);
         }
     }
 }

@@ -8,7 +8,10 @@
   {# --- Barre de recherche côté serveur (soumission auto) --- #}
   <div class="card mb-3">
     <div class="card-body">
-      <form id="search-form" method="get" action="{{ path(app.current_route starts with 'app_liste_produits_' ? app.current_route : 'app_liste_produits_index') }}" class="row g-2">
+      {% set current = app.request.attributes.get('_route') %}
+      {% set actionRoute = (current starts with 'app_liste_produits_') ? current : 'app_liste_produits_index' %}
+
+      <form id="search-form" method="get" action="{{ path(actionRoute) }}" class="row g-2">
         <div class="col-sm-4">
           <label for="q-ref" class="form-label mb-1">Référence (contient)</label>
           <input id="q-ref" name="ref" type="text" class="form-control" value="{{ f_ref }}" placeholder="ex: ABC123">
@@ -21,7 +24,7 @@
           <label for="q-limit" class="form-label mb-1">Taille page</label>
           <select id="q-limit" name="limit" class="form-select">
             {% for n in [10,20,50,100] %}
-              <option value="{{ n }}" {{ limit == n ? 'selected' }}>{{ n }}</option>
+              <option value="{{ n }}" {{ limit == n ? 'selected' : '' }}>{{ n }}</option>
             {% endfor %}
           </select>
         </div>
@@ -46,21 +49,35 @@
         {% set base = app.request.query.all %}
         <tr>
           <th style="width:70px;">
-            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'id','dir': sort=='id' ? toggle : 'ASC'})) }}">ID{% if sort == 'id' %} ({{ dir }}){% endif %}</a>
+            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'id','dir': sort=='id' ? toggle : 'ASC'})) }}">
+              ID{% if sort == 'id' %} ({{ dir }}){% endif %}
+            </a>
           </th>
           <th>
-            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'ref','dir': sort=='ref' ? toggle : 'ASC'})) }}">Référence{% if sort == 'ref' %} ({{ dir }}){% endif %}</a>
+            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'ref','dir': sort=='ref' ? toggle : 'ASC'})) }}">
+              Référence{% if sort == 'ref' %} ({{ dir }}){% endif %}
+            </a>
           </th>
           <th>
-            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'des','dir': sort=='des' ? toggle : 'ASC'})) }}">Désignation{% if sort == 'des' %} ({{ dir }}){% endif %}</a>
+            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'des','dir': sort=='des' ? toggle : 'ASC'})) }}">
+              Désignation{% if sort == 'des' %} ({{ dir }}){% endif %}
+            </a>
           </th>
           <th>
-            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'uvEnStock','dir': sort=='uvEnStock' ? toggle : 'ASC'})) }}">UV en stock{% if sort == 'uvEnStock' %} ({{ dir }}){% endif %}</a>
+            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'uvEnStock','dir': sort=='uvEnStock' ? toggle : 'ASC'})) }}">
+              UV en stock{% if sort == 'uvEnStock' %} ({{ dir }}){% endif %}
+            </a>
           </th>
           <th>
-            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'nbrucPal','dir': sort=='nbrucPal' ? toggle : 'ASC'})) }}">Nb ruc/pal{% if sort == 'nbrucPal' %} ({{ dir }}){% endif %}</a>
+            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'seuilreapp','dir': sort=='seuilreapp' ? toggle : 'ASC'})) }}">
+              Seuil réapp{% if sort == 'seuilreapp' %} ({{ dir }}){% endif %}
+            </a>
           </th>
-          <th>Poids</th>
+          <th>
+            <a href="{{ path('app_liste_produits_index', base|merge({'sort':'pinkg','dir': sort=='pinkg' ? toggle : 'ASC'})) }}">
+              Poids (kg){% if sort == 'pinkg' %} ({{ dir }}){% endif %}
+            </a>
+          </th>
           <th style="width:110px;">Actions</th>
         </tr>
       </thead>
@@ -71,7 +88,7 @@
             <td><code>{{ p.ref }}</code></td>
             <td>{{ p.des }}</td>
             <td>{{ p.uvEnStock }}</td>
-            <td>{{ p.nbrucPal }}</td>
+            <td>{{ p.seuilreapp }}</td>
             <td>{{ p.pinkg }}</td>
             <td>
               <a class="btn btn-sm btn-outline-primary" href="{{ path('app_liste_produits_show', {id: p.id}) }}">Voir</a>
@@ -127,21 +144,20 @@
     clearTimeout(timer);
     timer = setTimeout(() => {
       // Revenir page 1 à chaque changement de filtre/limit
-      page.value = '1';
+      if (page) page.value = '1';
       const qs = new URLSearchParams(new FormData(form)).toString();
       const url = form.action + '?' + qs;
       if (url !== lastSent) {
         lastSent = url;
         window.location.href = url; // reload (server-side filtering on whole table)
       }
-    }, 300); // debounce 300ms
+    }, 300);
   }
 
   ref.addEventListener('input', submitDebounced);
   des.addEventListener('input', submitDebounced);
   limit.addEventListener('change', submitDebounced);
 
-  // Enter = éviter double soumission
   form.addEventListener('submit', function(e) {
     e.preventDefault();
     submitDebounced();

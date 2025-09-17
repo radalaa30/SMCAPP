@@ -13,21 +13,38 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/admin')]
 class ListeProduitsTestController extends AbstractController
 {
-    // Deux URLs vers la même page (garde celles que tu utilises)
-    #[Route('/liste/produits', name: 'app_liste_produits_index')]
-    #[Route('/liste/produits/test', name: 'app_liste_produits_test')]
+    /**
+     * Liste des produits avec recherche + tri + pagination.
+     * Requiert que le repository ait une méthode :
+     *   search(string $ref, string $des, int $page, int $limit, string $sort, string $dir): array{0: array, 1: int}
+     */
+    #[Route('/liste/produits', name: 'app_liste_produits_index', methods: ['GET'])]
+    #[Route('/liste/produits/test', name: 'app_liste_produits_test', methods: ['GET'])]
     public function index(Request $request, ListeProduitsRepository $repo): Response
     {
+        // Filtres
         $ref   = trim((string) $request->query->get('ref', ''));
         $des   = trim((string) $request->query->get('des', ''));
-        $page  = max(1, (int) $request->query->get('page', 1));
-        $limit = min(200, max(5, (int) $request->query->get('limit', 20)));
-        $sort  = (string) $request->query->get('sort', 'ref');
-        $dir   = (string) $request->query->get('dir', 'ASC');
 
-        // Ton repo doit avoir une méthode search($ref,$des,$page,$limit,$sort,$dir)
+        // Pagination
+        $page  = (int) $request->query->get('page', 1);
+        $limit = (int) $request->query->get('limit', 20);
+        $page  = max(1, $page);
+        $limit = min(200, max(5, $limit));
+
+        // Tri (whitelist pour éviter l’injection SQL)
+        $sortWhitelist = ['ref', 'des', 'pinkg', 'uvEnStock', 'seuilreapp', 'id'];
+        $sort = (string) $request->query->get('sort', 'ref');
+        if (!in_array($sort, $sortWhitelist, true)) {
+            $sort = 'ref';
+        }
+
+        $dir = strtoupper((string) $request->query->get('dir', 'ASC'));
+        $dir = in_array($dir, ['ASC', 'DESC'], true) ? $dir : 'ASC';
+
+        // Récup des données
         [$produits, $total] = $repo->search($ref, $des, $page, $limit, $sort, $dir);
-        $pages = (int) ceil($total / $limit);
+        $pages = (int) ceil(($total ?: 0) / $limit);
 
         return $this->render('liste_produits_test/index.html.twig', [
             'produits' => $produits,
@@ -42,15 +59,21 @@ class ListeProduitsTestController extends AbstractController
         ]);
     }
 
-    #[Route('/liste/produits/{id}', name: 'app_liste_produits_show', requirements: ['id' => '\d+'])]
+    /**
+     * Détail d’un produit + liste paginée des suivis liés (CodeProduit == ref),
+     * avec filtres et pagination indépendants.
+     */
+    #[Route('/liste/produits/{id}', name: 'app_liste_produits_show', requirements: ['id' => '\d+'], methods: ['GET'])]
     public function show(
         ListeProduits $produit,
         Request $request,
         SuividupreparationdujourRepository $suiviRepo
     ): Response {
         // Pagination des suivis (bloc du bas)
-        $spage  = max(1, (int) $request->query->get('spage', 1));
-        $slimit = min(200, max(10, (int) $request->query->get('slimit', 20)));
+        $spage  = (int) $request->query->get('spage', 1);
+        $slimit = (int) $request->query->get('slimit', 20);
+        $spage  = max(1, $spage);
+        $slimit = min(200, max(10, $slimit));
 
         // Filtres (GET). Les champs "date" arrivent en 'Y-m-d'.
         $f = [
@@ -70,10 +93,10 @@ class ListeProduitsTestController extends AbstractController
         ];
 
         // Parsing dates en objets (début/fin de journée)
-        $majFrom = $f['maj_from_raw'] ? new \DateTimeImmutable($f['maj_from_raw'].' 00:00:00') : null;
-        $majTo   = $f['maj_to_raw']   ? new \DateTimeImmutable($f['maj_to_raw'].' 23:59:59')   : null;
-        $livFrom = $f['liv_from_raw'] ? new \DateTimeImmutable($f['liv_from_raw'].' 00:00:00') : null;
-        $livTo   = $f['liv_to_raw']   ? new \DateTimeImmutable($f['liv_to_raw'].' 23:59:59')   : null;
+        $majFrom = $f['maj_from_raw'] !== '' ? new \DateTimeImmutable($f['maj_from_raw'].' 00:00:00') : null;
+        $majTo   = $f['maj_to_raw']   !== '' ? new \DateTimeImmutable($f['maj_to_raw'].' 23:59:59')   : null;
+        $livFrom = $f['liv_from_raw'] !== '' ? new \DateTimeImmutable($f['liv_from_raw'].' 00:00:00') : null;
+        $livTo   = $f['liv_to_raw']   !== '' ? new \DateTimeImmutable($f['liv_to_raw'].' 23:59:59')   : null;
 
         $filters = [
             'noBl'         => $f['noBl'],
@@ -91,9 +114,12 @@ class ListeProduitsTestController extends AbstractController
             'liv_to'       => $livTo,
         ];
 
-        $ref = (string) $produit->getRef(); // Jointure logique : CodeProduit == ref
+        // Jointure logique : CodeProduit (dans Suividupreparationdujour) == ref (dans ListeProduits)
+        $ref = (string) $produit->getRef();
+
+        // Récup des suivis paginés
         [$suivis, $stotal] = $suiviRepo->findByCodeProduitFilteredPaginated($ref, $filters, $spage, $slimit);
-        $spages = (int) ceil($stotal / $slimit);
+        $spages = (int) ceil(($stotal ?: 0) / $slimit);
 
         return $this->render('liste_produits_test/show.html.twig', [
             'produit' => $produit,
@@ -102,7 +128,7 @@ class ListeProduitsTestController extends AbstractController
             'spage'   => $spage,
             'spages'  => $spages,
             'slimit'  => $slimit,
-            'f'       => $f,   // pour réafficher les champs
+            'f'       => $f,   // pour réafficher les champs dans le formulaire
         ]);
     }
 }
